@@ -356,6 +356,18 @@ export function useKaraokeRoom() {
     joinRoom,
     leaveRoom,
     getRoom,
-    togglePlayback
+    togglePlayback,
+    sendMessage: async (content: string) => {
+      if (!user) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('chat_messages')
+        .insert([{
+          room_id: room?.id,
+          user_id: user.id,
+          content
+        }]);
+      if (error) throw error;
+    },
+    messages: [] // Initialize empty messages array
   };
 } 

@@ -19,6 +19,7 @@ import {
   Filter, Sparkles
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Song {
   id: string;
@@ -53,9 +54,10 @@ const GENRES = [
 ];
 
 export default function DashboardPage() {
-  const { user, signOut } = useAuth();
-  const { profile, loading } = useProfile();
+  const { user, loading: authLoading } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
   const router = useRouter();
+  const { toast } = useToast();
   const [songs, setSongs] = useState<Song[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -71,68 +73,96 @@ export default function DashboardPage() {
   const [selectedGenre, setSelectedGenre] = useState<string>('');
 
   useEffect(() => {
-    if (!user) {
+    // Only redirect if auth is not loading and there's no user
+    if (!authLoading && !user) {
       router.push('/auth/login');
       return;
     }
-    loadUserContent();
-  }, [user, router, filter, selectedGenre]);
+    
+    // Only load content if we have a user
+    if (user) {
+      loadUserContent();
+    }
+  }, [user, authLoading, router, filter, selectedGenre]);
 
   const loadUserContent = async () => {
     if (!user) return;
 
-    let query = supabase
-      .from('songs')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      let query = supabase
+        .from('songs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-    // Apply filters
-    switch (filter) {
-      case 'trending':
-        query = query.order('trending_score', { ascending: false });
-        break;
-      case 'new':
-        query = query.order('created_at', { ascending: false });
-        break;
-      case 'nft':
-        query = query.eq('is_nft', true);
-        break;
-      case 'genre':
-        if (selectedGenre) {
-          query = query.eq('genre', selectedGenre);
-        }
-        break;
-    }
+      // Apply filters
+      switch (filter) {
+        case 'trending':
+          query = query.order('trending_score', { ascending: false });
+          break;
+        case 'new':
+          query = query.order('created_at', { ascending: false });
+          break;
+        case 'nft':
+          query = query.eq('is_nft', true);
+          break;
+        case 'genre':
+          if (selectedGenre) {
+            query = query.eq('genre', selectedGenre);
+          }
+          break;
+      }
 
-    const { data: songsData } = await query;
+      const { data: songsData, error: songsError } = await query;
 
-    if (songsData) {
-      setSongs(songsData);
-    }
+      if (songsError) throw songsError;
 
-    // Load user's rooms
-    const { data: roomsData } = await supabase
-      .from('karaoke_rooms')
-      .select(`
-        id,
-        name,
-        created_at,
-        is_private,
-        participants:room_participants(count)
-      `)
-      .eq('host_id', user.id)
-      .order('created_at', { ascending: false });
+      if (songsData) {
+        setSongs(songsData);
+      }
 
-    if (roomsData) {
-      setRooms(roomsData.map(room => ({
-        ...room,
-        participants_count: room.participants?.[0]?.count || 0
-      })));
+      // Load user's rooms
+      const { data: roomsData, error: roomsError } = await supabase
+        .from('karaoke_rooms')
+        .select(`
+          id,
+          name,
+          created_at,
+          is_private,
+          participants:room_participants(count)
+        `)
+        .eq('host_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (roomsError) throw roomsError;
+
+      if (roomsData) {
+        setRooms(roomsData.map(room => ({
+          ...room,
+          participants_count: room.participants?.[0]?.count || 0
+        })));
+      }
+    } catch (error: any) {
+      console.error('Error loading content:', error);
+      toast({
+        variant: "destructive",
+        title: "Error loading content",
+        description: error.message || "Failed to load your content. Please try again.",
+        duration: 5000,
+      });
     }
   };
 
   const handleSongUpload = async () => {
-    if (!user || !songFile || !songTitle || !songArtist) return;
+    if (!user || !songFile || !songTitle || !songArtist) {
+      toast({
+        variant: "destructive",
+        title: "Missing information",
+        description: "Please provide a song file, title, and artist name.",
+        duration: 5000,
+      });
+      return;
+    }
 
     try {
       setUploading(true);
@@ -201,9 +231,22 @@ export default function DashboardPage() {
       setDuration(0);
       setGenre('');
       setIsNft(false);
+      
+      toast({
+        title: "Song uploaded successfully!",
+        description: `${songTitle} by ${songArtist} has been added to your collection.`,
+        duration: 5000,
+      });
+
       loadUserContent();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading song:', error);
+      toast({
+        variant: "destructive",
+        title: "Error uploading song",
+        description: error.message || "Failed to upload song. Please try again.",
+        duration: 5000,
+      });
     } finally {
       setUploading(false);
     }
@@ -220,13 +263,26 @@ export default function DashboardPage() {
         .eq('user_id', user.id);
 
       if (error) throw error;
+
+      toast({
+        title: "Song deleted",
+        description: "The song has been removed from your collection.",
+        duration: 3000,
+      });
+
       loadUserContent();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting song:', error);
+      toast({
+        variant: "destructive",
+        title: "Error deleting song",
+        description: error.message || "Failed to delete song. Please try again.",
+        duration: 5000,
+      });
     }
   };
 
-  if (loading) {
+  if (profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>

@@ -51,7 +51,6 @@ export function useAuth() {
         password
       });
       if (error) throw error;
-      router.push('/dashboard');
       return { data, error: null };
     } catch (error) {
       return { data: null, error };

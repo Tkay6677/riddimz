@@ -7,6 +7,7 @@ import Header from '@/components/layout/header';
 import { Sidebar } from '@/components/layout/sidebar';
 import { AppProvider } from '@/providers/AppProvider';
 import { WalletContextProvider } from '@/components/providers/wallet-provider';
+import SupabaseProvider from '@/lib/supabase-context';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -27,21 +28,24 @@ export default function RootLayout({
           attribute="class"
           defaultTheme="dark"
           enableSystem
+          disableTransitionOnChange
         >
-          <AppProvider>
-            <WalletContextProvider>
-              <div className="flex h-screen overflow-hidden bg-background">
-                <Sidebar />
-                <div className="flex flex-col flex-1 overflow-hidden">
-                  <Header />
-                  <main className="flex-1 overflow-y-auto py-2">
-                    {children}
-                  </main>
+          <SupabaseProvider>
+            <AppProvider>
+              <WalletContextProvider>
+                <div className="flex h-screen overflow-hidden bg-background">
+                  <Sidebar />
+                  <div className="flex flex-col flex-1 overflow-hidden">
+                    <Header />
+                    <main className="flex-1 overflow-y-auto py-2">
+                      {children}
+                    </main>
+                  </div>
                 </div>
-              </div>
-              <Toaster />
-            </WalletContextProvider>
-          </AppProvider>
+                <Toaster />
+              </WalletContextProvider>
+            </AppProvider>
+          </SupabaseProvider>
         </ThemeProvider>
       </body>
     </html>

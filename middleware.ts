@@ -13,18 +13,9 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(path)
   );
 
-  // Auth pages
-  const authPaths = ['/auth/login', '/auth/signup'];
-  const isAuthPath = authPaths.some(path => 
-    request.nextUrl.pathname.startsWith(path)
-  );
-
+  // Only redirect from protected routes if not authenticated
   if (isProtectedPath && !session) {
     return NextResponse.redirect(new URL('/auth/login', request.url));
-  }
-
-  if (isAuthPath && session) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   return res;

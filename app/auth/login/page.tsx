@@ -8,10 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Chrome } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
   const { signIn, signInWithGoogle } = useAuth();
+  const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,8 +26,30 @@ export default function LoginPage() {
     try {
       const { error } = await signIn(email, password);
       if (error) throw error;
-    } catch (error) {
+
+      // Wait for session to be established
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Session not established');
+      }
+
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully signed in.",
+        duration: 3000,
+      });
+
+      router.push('/dashboard');
+    } catch (error: any) {
       console.error('Error logging in:', error);
+      toast({
+        variant: "destructive",
+        title: "Error signing in",
+        description: error.message || "Invalid email or password. Please try again.",
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -34,8 +59,14 @@ export default function LoginPage() {
     try {
       const { error } = await signInWithGoogle();
       if (error) throw error;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error logging in with Google:', error);
+      toast({
+        variant: "destructive",
+        title: "Error signing in with Google",
+        description: error.message || "Something went wrong. Please try again.",
+        duration: 5000,
+      });
     }
   };
 
@@ -56,6 +87,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
               />
             </div>
             <div>
@@ -66,6 +98,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>

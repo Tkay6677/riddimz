@@ -300,11 +300,11 @@ export function MusicGrid({ limit = 8, filter }: MusicGridProps) {
       repeatMode === 'all' ? 'track' : 'off'
     )
   }
-
+  
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">
-        {limitedTracks.map(track => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">
+      {limitedTracks.map(track => (
           <MusicCard 
             key={track.id} 
             track={track} 
