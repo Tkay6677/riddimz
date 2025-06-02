@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Mic, Music, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic'
+
 export default function CreateKaraokeRoom() {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);

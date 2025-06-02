@@ -53,6 +53,8 @@ const GENRES = [
   'Blues', 'Reggae', 'Latin', 'World', 'Other'
 ];
 
+export const dynamic = 'force-dynamic'
+
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading } = useProfile();

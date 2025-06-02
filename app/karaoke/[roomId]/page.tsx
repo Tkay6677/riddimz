@@ -26,12 +26,14 @@ interface ChatMessage {
   };
 }
 
+export const dynamic = 'force-dynamic'
+
 export default function KaraokeRoom() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
   const roomId = params.roomId as string
-  const { room, loading, error, currentTime, currentLyric, nextLyrics, joinRoom, leaveRoom, togglePlayback, sendMessage, messages = [] } = useKaraokeRoom()
+  const { room, loading: roomLoading, error, currentTime, currentLyric, nextLyrics, joinRoom, leaveRoom, togglePlayback, sendMessage, messages = [] } = useKaraokeRoom()
   const { user, loading: authLoading } = useAuth()
   const chatRef = useRef<HTMLDivElement>(null)
   
@@ -42,7 +44,7 @@ export default function KaraokeRoom() {
   const [isMobile, setIsMobile] = useState(false)
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([])
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [loading, setLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   
   // Check for mobile viewport
@@ -96,12 +98,12 @@ export default function KaraokeRoom() {
 
   const loadRoomData = async () => {
     try {
-      setLoading(true)
+      setIsLoading(true)
       // ... existing loading logic ...
     } catch (error) {
       // ... error handling ...
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
@@ -134,7 +136,7 @@ export default function KaraokeRoom() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
   
-  if (loading && isInitialLoad) {
+  if (isLoading && isInitialLoad) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
@@ -142,7 +144,7 @@ export default function KaraokeRoom() {
     )
   }
 
-  if (authLoading || loading) {
+  if (authLoading || roomLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>

@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Music, Mic, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic'
+
 export default function UploadPage() {
   const router = useRouter();
   const [uploading, setUploading] = useState(false);

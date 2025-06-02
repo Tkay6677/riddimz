@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   description: 'A decentralized karaoke platform powered by blockchain technology',
 };
 
+export const dynamic = 'force-dynamic'
+
 export default function RootLayout({
   children,
 }: {

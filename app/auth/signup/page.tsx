@@ -10,6 +10,8 @@ import { Chrome } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 
+export const dynamic = 'force-dynamic'
+
 export default function SignUpPage() {
   const router = useRouter();
   const { signUp, signInWithGoogle } = useAuth();
