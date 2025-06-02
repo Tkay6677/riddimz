@@ -42,6 +42,8 @@ export default function KaraokeRoom() {
   const [isMobile, setIsMobile] = useState(false)
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([])
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   
   // Check for mobile viewport
   useEffect(() => {
@@ -85,6 +87,24 @@ export default function KaraokeRoom() {
     }
   }, [roomId, user, authLoading])
 
+  useEffect(() => {
+    if (isInitialLoad) {
+      loadRoomData()
+      setIsInitialLoad(false)
+    }
+  }, [isInitialLoad])
+
+  const loadRoomData = async () => {
+    try {
+      setLoading(true)
+      // ... existing loading logic ...
+    } catch (error) {
+      // ... error handling ...
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleLeaveRoom = async () => {
     await leaveRoom(roomId)
     router.push('/karaoke')
@@ -114,6 +134,14 @@ export default function KaraokeRoom() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
   
+  if (loading && isInitialLoad) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">

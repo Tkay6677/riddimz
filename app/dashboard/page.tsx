@@ -71,24 +71,22 @@ export default function DashboardPage() {
   const [isNft, setIsNft] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
   const [selectedGenre, setSelectedGenre] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   useEffect(() => {
-    // Only redirect if auth is not loading and there's no user
-    if (!authLoading && !user) {
-      router.push('/auth/login');
-      return;
+    if (!authLoading && user) {
+      loadDashboardData();
     }
-    
-    // Only load content if we have a user
-    if (user) {
-      loadUserContent();
-    }
-  }, [user, authLoading, router, filter, selectedGenre]);
+  }, [authLoading, user]);
 
-  const loadUserContent = async () => {
+  const loadDashboardData = async () => {
     if (!user) return;
 
     try {
+      setLoading(true);
+
+      // Load user's songs
       let query = supabase
         .from('songs')
         .select('*')
@@ -118,7 +116,12 @@ export default function DashboardPage() {
       if (songsError) throw songsError;
 
       if (songsData) {
-        setSongs(songsData);
+        // Transform cover_url to use Supabase storage URL
+        const songsWithUrls = songsData.map(song => ({
+          ...song,
+          cover_url: song.cover_url ? supabase.storage.from('karaoke-songs').getPublicUrl(song.cover_url).data.publicUrl : null
+        }));
+        setSongs(songsWithUrls);
       }
 
       // Load user's rooms
@@ -150,6 +153,9 @@ export default function DashboardPage() {
         description: error.message || "Failed to load your content. Please try again.",
         duration: 5000,
       });
+    } finally {
+      setLoading(false);
+      setIsInitialLoad(false);
     }
   };
 
@@ -238,7 +244,7 @@ export default function DashboardPage() {
         duration: 5000,
       });
 
-      loadUserContent();
+      loadDashboardData();
     } catch (error: any) {
       console.error('Error uploading song:', error);
       toast({
@@ -270,7 +276,7 @@ export default function DashboardPage() {
         duration: 3000,
       });
 
-      loadUserContent();
+      loadDashboardData();
     } catch (error: any) {
       console.error('Error deleting song:', error);
       toast({
@@ -281,6 +287,14 @@ export default function DashboardPage() {
       });
     }
   };
+
+  if (loading && isInitialLoad) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (profileLoading) {
     return (
@@ -389,7 +403,7 @@ export default function DashboardPage() {
                         <div className="flex items-center space-x-4">
                           {song.cover_url ? (
                             <img 
-                              src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/karaoke-songs/${song.cover_url}`}
+                              src={song.cover_url}
                               alt={song.title}
                               className="h-12 w-12 rounded-md object-cover"
                             />

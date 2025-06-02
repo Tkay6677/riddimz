@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -16,6 +16,9 @@ import {
   Heart, PlayCircle
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/components/ui/use-toast'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 // Mock data
 const nfts = [
@@ -45,54 +48,248 @@ const nfts = [
   }
 ]
 
-const karaokeHistory = [
-  {
-    id: '1',
-    song: 'Somebody To Love',
-    artist: 'Queen',
-    date: '2 hours ago',
-    roomName: 'Pop Hits Karaoke Night',
-    participants: 28,
-    duration: '4:52'
-  },
-  {
-    id: '2',
-    song: 'Don\'t Stop Believin\'',
-    artist: 'Journey',
-    date: 'Yesterday',
-    roomName: 'Rock Legends Jam',
-    participants: 15,
-    duration: '4:11'
-  },
-  {
-    id: '3',
-    song: 'Bohemian Rhapsody',
-    artist: 'Queen',
-    date: '3 days ago',
-    roomName: 'Classic Rock Karaoke',
-    participants: 22,
-    duration: '5:55'
-  }
-]
+interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  cover_url: string | null;
+  created_at: string;
+}
+
+interface Room {
+  id: string;
+  name: string;
+  description: string | null;
+  is_live: boolean;
+  created_at: string;
+}
+
+interface DatabasePerformance {
+  id: string;
+  created_at: string;
+  duration: number;
+  songs: Song[];
+  karaoke_rooms: Room[];
+}
+
+interface FormattedPerformance {
+  id: string;
+  song: string;
+  artist: string;
+  date: string;
+  roomName: string;
+  duration: number;
+}
 
 export default function Profile() {
   const [isEditing, setIsEditing] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [userProfile, setUserProfile] = useState({
-    username: 'MelodyMaster',
-    fullName: 'Alex Johnson',
-    bio: 'Passionate about music and karaoke! I host weekly karaoke rooms featuring classic rock hits. Come join me and let\'s have some fun!',
-    avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg',
-    walletAddress: '8Kv91Jj9eYcCJLtLEfSHnCAvdKrXQJLTfwUQJcmDxDKJ',
-    joinDate: 'March 2023',
-    followers: 152,
-    following: 87
+    username: '',
+    fullName: '',
+    bio: '',
+    avatar_url: '',
+    email: '',
+    created_at: '',
+    followers: 0,
+    following: 0,
+    performances: 0
   })
-  
-  const handleProfileUpdate = () => {
-    // In a real app, this would save to the database
-    setIsEditing(false)
+  const [karaokeHistory, setKaraokeHistory] = useState<FormattedPerformance[]>([])
+  const [userSongs, setUserSongs] = useState<Song[]>([])
+  const [userRooms, setUserRooms] = useState<Room[]>([])
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const supabase = createClientComponentClient()
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  useEffect(() => {
+    if (user && isInitialLoad) {
+      loadUserProfile()
+      loadKaraokeHistory()
+      loadUserSongs()
+      loadUserRooms()
+      setIsInitialLoad(false)
+    }
+  }, [user, isInitialLoad])
+
+  const loadUserProfile = async () => {
+    try {
+      setLoading(true)
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user?.id)
+        .single()
+
+      if (error) throw error
+
+      if (profile) {
+        setUserProfile({
+          username: profile.username || '',
+          fullName: profile.full_name || '',
+          bio: profile.bio || '',
+          avatar_url: profile.avatar_url || '',
+          email: profile.email || '',
+          created_at: new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          followers: profile.followers_count || 0,
+          following: profile.following_count || 0,
+          performances: profile.performances_count || 0
+        })
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error loading profile",
+        description: error.message
+      })
+    } finally {
+      setLoading(false)
+    }
   }
-  
+
+  const loadKaraokeHistory = async () => {
+    try {
+      // First get the performances
+      const { data: performances, error: performancesError } = await supabase
+        .from('karaoke_performances')
+        .select('id, created_at, duration, song_id, room_id')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (performancesError) throw performancesError
+
+      if (performances) {
+        // Then get the songs and rooms data
+        const songIds = performances.map(p => p.song_id)
+        const roomIds = performances.map(p => p.room_id)
+
+        const { data: songs, error: songsError } = await supabase
+          .from('songs')
+          .select('id, title, artist')
+          .in('id', songIds)
+
+        if (songsError) throw songsError
+
+        const { data: rooms, error: roomsError } = await supabase
+          .from('karaoke_rooms')
+          .select('id, name')
+          .in('id', roomIds)
+
+        if (roomsError) throw roomsError
+
+        // Combine the data
+        const formattedHistory: FormattedPerformance[] = performances.map(performance => {
+          const song = songs?.find(s => s.id === performance.song_id)
+          const room = rooms?.find(r => r.id === performance.room_id)
+
+          return {
+            id: performance.id,
+            song: song?.title || 'Unknown Song',
+            artist: song?.artist || 'Unknown Artist',
+            date: new Date(performance.created_at).toLocaleDateString(),
+            roomName: room?.name || 'Unknown Room',
+            duration: performance.duration
+          }
+        })
+
+        setKaraokeHistory(formattedHistory)
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error loading history",
+        description: error.message
+      })
+    }
+  }
+
+  const loadUserSongs = async () => {
+    try {
+      const { data: songs, error } = await supabase
+        .from('songs')
+        .select('id, title, artist, cover_url, created_at')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      if (songs) {
+        // Transform the cover_url to use Supabase storage URL
+        const songsWithUrls = songs.map(song => ({
+          ...song,
+          cover_url: song.cover_url ? supabase.storage.from('karaoke-songs').getPublicUrl(song.cover_url).data.publicUrl : null
+        }))
+        setUserSongs(songsWithUrls)
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error loading songs",
+        description: error.message
+      })
+    }
+  }
+
+  const loadUserRooms = async () => {
+    try {
+      const { data: rooms, error } = await supabase
+        .from('karaoke_rooms')
+        .select('id, name, description, is_live, created_at')
+        .eq('host_id', user?.id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      if (rooms) {
+        setUserRooms(rooms)
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error loading rooms",
+        description: error.message
+      })
+    }
+  }
+
+  const handleProfileUpdate = async () => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          username: userProfile.username,
+          full_name: userProfile.fullName,
+          bio: userProfile.bio,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user?.id)
+
+      if (error) throw error
+
+      toast({
+        title: "Profile updated successfully",
+        duration: 3000
+      })
+      setIsEditing(false)
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error updating profile",
+        description: error.message
+      })
+    }
+  }
+
+  if (loading && isInitialLoad) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="container px-4 max-w-7xl mx-auto py-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -109,7 +306,7 @@ export default function Profile() {
               {/* Avatar */}
               <div className="flex justify-center">
                 <Avatar className="h-24 w-24 border-4 border-background mt-[-3rem] rounded-full">
-                  <AvatarImage src={userProfile.avatar} alt={userProfile.username} />
+                  <AvatarImage src={userProfile.avatar_url} alt={userProfile.username} />
                   <AvatarFallback>{userProfile.username.slice(0, 2)}</AvatarFallback>
                 </Avatar>
               </div>
@@ -128,7 +325,7 @@ export default function Profile() {
                     <p className="text-xs text-muted-foreground">Following</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-bold">{karaokeHistory.length}</p>
+                    <p className="font-bold">{userProfile.performances}</p>
                     <p className="text-xs text-muted-foreground">Performances</p>
                   </div>
                 </div>
@@ -173,13 +370,11 @@ export default function Profile() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center text-muted-foreground">
                       <Calendar className="h-4 w-4 mr-2" />
-                      Joined {userProfile.joinDate}
+                      Joined {userProfile.created_at}
                     </div>
-                    <div className="flex items-center text-muted-foreground break-all">
-                      <div className="flex-shrink-0 mr-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                      </div>
-                      <span className="truncate">{userProfile.walletAddress.slice(0, 6)}...{userProfile.walletAddress.slice(-4)}</span>
+                    <div className="flex items-center text-muted-foreground">
+                      <User className="h-4 w-4 mr-2" />
+                      {userProfile.email}
                     </div>
                   </div>
                 </div>
@@ -209,22 +404,7 @@ export default function Profile() {
                       id="bio"
                       value={userProfile.bio}
                       onChange={(e) => setUserProfile({...userProfile, bio: e.target.value})}
-                      rows={4}
                     />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="avatar">Profile Image</Label>
-                    <div className="flex items-center mt-1">
-                      <Avatar className="h-12 w-12 mr-3">
-                        <AvatarImage src={userProfile.avatar} alt={userProfile.username} />
-                        <AvatarFallback>{userProfile.username.slice(0, 2)}</AvatarFallback>
-                      </Avatar>
-                      <Button variant="outline" size="sm">
-                        <Upload className="h-4 w-4 mr-2" />
-                        Change
-                      </Button>
-                    </div>
                   </div>
                 </div>
               )}
@@ -262,111 +442,114 @@ export default function Profile() {
         
         {/* Main content */}
         <div className="md:col-span-2">
-          <Tabs defaultValue="nfts">
-            <TabsList className="mb-6">
-              <TabsTrigger value="nfts">My NFTs</TabsTrigger>
-              <TabsTrigger value="karaoke">Karaoke History</TabsTrigger>
-              <TabsTrigger value="favorites">Favorites</TabsTrigger>
+          <Tabs defaultValue="history" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="history">
+                <Mic className="h-4 w-4 mr-2" />
+                Performance History
+              </TabsTrigger>
+              <TabsTrigger value="songs">
+                <Music className="h-4 w-4 mr-2" />
+                My Songs
+              </TabsTrigger>
+              <TabsTrigger value="rooms">
+                <Users className="h-4 w-4 mr-2" />
+                My Rooms
+              </TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="nfts">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {nfts.map((nft) => (
-                  <div key={nft.id} className="relative group">
-                    <div className="rounded-lg overflow-hidden border bg-card text-card-foreground shadow-sm hover:shadow-md transition-all duration-300">
-                      <div className="aspect-square relative">
-                        <Image 
-                          src={nft.image} 
-                          alt={nft.name}
-                          fill
-                          className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
+
+            <TabsContent value="history" className="space-y-4">
+              {karaokeHistory.map((performance) => (
+                <Card key={performance.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold">{performance.song}</h3>
+                        <p className="text-sm text-muted-foreground">{performance.artist}</p>
                       </div>
-                      <div className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold">{nft.name}</h3>
-                          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-                            {nft.type}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">{nft.description}</p>
-                        <div className="text-xs text-muted-foreground">by {nft.creator}</div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">{performance.date}</p>
+                        <p className="text-sm text-muted-foreground">{performance.roomName}</p>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {karaokeHistory.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No performance history yet
+                </div>
+              )}
             </TabsContent>
-            
-            <TabsContent value="karaoke">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Your Karaoke Performances</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[500px] pr-4">
-                    <div className="space-y-4">
-                      {karaokeHistory.map((item) => (
-                        <div key={item.id} className="p-4 border rounded-lg hover:bg-secondary transition-colors">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h3 className="font-semibold text-lg">{item.song}</h3>
-                              <p className="text-muted-foreground">{item.artist}</p>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full">
-                                <PlayCircle className="h-5 w-5" />
-                              </Button>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full">
-                                <Heart className="h-5 w-5" />
-                              </Button>
-                            </div>
+
+            <TabsContent value="songs" className="space-y-4">
+              {userSongs.map((song) => (
+                <Card key={song.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-4">
+                      <div className="h-16 w-16 relative rounded-md overflow-hidden">
+                        {song.cover_url ? (
+                          <Image
+                            src={song.cover_url}
+                            alt={song.title}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-muted flex items-center justify-center">
+                            <Music className="h-8 w-8 text-muted-foreground" />
                           </div>
-                          
-                          <div className="flex items-center text-sm text-muted-foreground mt-2">
-                            <div className="flex items-center mr-4">
-                              <Clock className="h-4 w-4 mr-1" />
-                              {item.duration}
-                            </div>
-                            <div className="flex items-center mr-4">
-                              <Users className="h-4 w-4 mr-1" />
-                              {item.participants}
-                            </div>
-                            <div className="flex items-center">
-                              <Calendar className="h-4 w-4 mr-1" />
-                              {item.date}
-                            </div>
-                          </div>
-                          
-                          <Separator className="my-3" />
-                          
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm">{item.roomName}</span>
-                            <Button variant="outline" size="sm">
-                              View Recording
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold">{song.title}</h3>
+                        <p className="text-sm text-muted-foreground">{song.artist}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Added {new Date(song.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="icon">
+                        <PlayCircle className="h-5 w-5" />
+                      </Button>
                     </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              ))}
+              {userSongs.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No songs uploaded yet
+                </div>
+              )}
             </TabsContent>
-            
-            <TabsContent value="favorites">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Your Favorites</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-6">You haven't added any favorites yet. Explore music and karaoke rooms and heart the ones you like!</p>
-                  
-                  <Button>
-                    Explore Music
-                  </Button>
-                </CardContent>
-              </Card>
+
+            <TabsContent value="rooms" className="space-y-4">
+              {userRooms.map((room) => (
+                <Card key={room.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold">{room.name}</h3>
+                        <p className="text-sm text-muted-foreground">{room.description}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Created {new Date(room.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className={`h-2 w-2 rounded-full ${room.is_live ? 'bg-green-500' : 'bg-gray-500'}`} />
+                        <span className="text-sm text-muted-foreground">
+                          {room.is_live ? 'Live' : 'Offline'}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {userRooms.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No rooms created yet
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
