@@ -200,28 +200,26 @@ export default function DashboardPage() {
     }
   }, [user?.id, supabase, toast]);
 
-  // Main effect for data loading and caching
+  const handleScroll = useCallback(() => {
+    if (isVisible) {
+      // ... existing code ...
+    }
+  }, [isVisible]);
+
+  const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
+    if (isMounted) {
+      entries.forEach((entry) => {
+        if (isVisible) {
+          // ... existing code ...
+        }
+      });
+    }
+  }, [isMounted, isVisible]);
+
   useEffect(() => {
-    if (!user) return;
-
-    // Try to load from cache
-    const cachedSongs = sessionStorage.getItem('dashboard_songs');
-    const cachedRooms = sessionStorage.getItem('dashboard_rooms');
-
-    if (cachedSongs) {
-      setSongs(JSON.parse(cachedSongs));
-    } else {
-      loadSongs();
-    }
-
-    if (cachedRooms) {
-      setRooms(JSON.parse(cachedRooms));
-    } else {
-      loadRooms();
-    }
-
-    // removed setLoading(false)
-  }, [user]);
+    loadRooms();
+    loadSongs();
+  }, [loadRooms, loadSongs]);
 
   const handleSongUpload = async () => {
     if (!user || !songFile || !songTitle || !songArtist) {

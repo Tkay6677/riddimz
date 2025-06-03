@@ -14,6 +14,7 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { useKaraokeRoom } from '@/hooks/useKaraokeRoom'
 import { useAuth } from '@/hooks/useAuth'
+import { useWebRTC } from '@/hooks/useWebRTC'
 
 interface ChatMessage {
   id: string;
@@ -33,8 +34,15 @@ export default function KaraokeRoom() {
   const router = useRouter()
   const { toast } = useToast()
   const roomId = params.roomId as string
-  const { room, loading: roomLoading, error, currentTime, currentLyric, nextLyrics, joinRoom, leaveRoom, togglePlayback, sendMessage, messages = [] } = useKaraokeRoom()
+  const { room, loading: roomLoading, error: roomError, currentTime, currentLyric, nextLyrics, joinRoom, leaveRoom, togglePlayback, sendMessage, messages = [] } = useKaraokeRoom()
   const { user, loading: authLoading } = useAuth()
+  const {
+    startStreaming,
+    stopStreaming,
+    isStreaming,
+    error: streamError,
+    toggleMic: webRTCToggleMic
+  } = useWebRTC(roomId, user?.id || '', user?.id === room?.host_id)
   const chatRef = useRef<HTMLDivElement>(null)
   
   const [isMuted, setIsMuted] = useState(false)
@@ -46,6 +54,7 @@ export default function KaraokeRoom() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isLoading, setIsLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [isMicMuted, setIsMicMuted] = useState(false)
   
   // Check for mobile viewport
   useEffect(() => {
@@ -87,25 +96,29 @@ export default function KaraokeRoom() {
         })
       }
     }
-  }, [roomId, user, authLoading])
+  }, [roomId, user, authLoading, joinRoom, router])
 
   useEffect(() => {
     if (isInitialLoad) {
-      loadRoomData()
+      setIsLoading(false)
       setIsInitialLoad(false)
     }
   }, [isInitialLoad])
 
-  const loadRoomData = async () => {
-    try {
-      setIsLoading(true)
-      // ... existing loading logic ...
-    } catch (error) {
-      // ... error handling ...
-    } finally {
-      setIsLoading(false)
-      }
+  // Add streaming state effect
+  useEffect(() => {
+    if (user?.id === room?.host_id && !isStreaming) {
+      startStreaming().catch((error) => {
+        toast({
+          variant: "destructive",
+          title: "Streaming Error",
+          description: error.message || "Failed to start streaming",
+          duration: 5000,
+        });
+        console.error('Streaming error:', error);
+      });
     }
+  }, [user?.id, room?.host_id, isStreaming, startStreaming, toast]);
 
   const handleLeaveRoom = async () => {
     await leaveRoom(roomId)
@@ -136,6 +149,87 @@ export default function KaraokeRoom() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
   
+  // Update the host badge to show streaming status
+  const renderHostBadge = () => {
+    if (!room) return null;
+    return (
+      <div className="absolute top-2 md:top-4 left-2 md:left-4 flex items-center bg-black/50 backdrop-blur-sm rounded-full px-2 md:px-3 py-1 md:py-1.5">
+        <Avatar className="h-5 w-5 md:h-6 md:w-6 mr-1 md:mr-2">
+        <AvatarImage
+  src={room.host?.avatar_url ?? undefined}
+  alt={room.host?.username ?? undefined}
+/>
+          <AvatarFallback>{room.host?.username?.slice(0, 2)}</AvatarFallback>
+        </Avatar>
+        <span className="text-white text-xs md:text-sm">{room.host?.username}</span>
+        <Badge variant="outline" className="ml-1 md:ml-2 border-white/20 text-white bg-red-500/20 text-[10px] md:text-xs">
+          {isStreaming ? (
+            <>
+              <Mic className="h-2 w-2 md:h-3 md:w-3 mr-0.5 md:mr-1" />
+              Streaming
+            </>
+          ) : (
+            <>
+              <MicOff className="h-2 w-2 md:h-3 md:w-3 mr-0.5 md:mr-1" />
+              Offline
+            </>
+          )}
+        </Badge>
+      </div>
+    );
+  };
+
+  // Update the playback controls section
+  const renderPlaybackControls = () => {
+    if (!room) return null;
+    return (
+      <div className="flex items-center justify-center space-x-4">
+        {user?.id === room.host_id && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
+            onClick={() => {
+              webRTCToggleMic();
+              setIsMicMuted(!isMicMuted);
+            }}
+          >
+            {isMicMuted ? (
+              <MicOff className="h-6 w-6 text-white" />
+            ) : (
+              <Mic className="h-6 w-6 text-white" />
+            )}
+          </Button>
+        )}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
+          onClick={togglePlayback}
+        >
+          {room.current_song?.is_playing ? (
+            <Pause className="h-6 w-6 text-white" />
+          ) : (
+            <Play className="h-6 w-6 text-white" />
+          )}
+        </Button>
+        {user?.id === room.host_id && (
+          <Button
+            variant="destructive"
+            size="sm"
+            className="h-10"
+            onClick={() => {
+              stopStreaming();
+              router.push('/karaoke');
+            }}
+          >
+            End Stream
+          </Button>
+        )}
+      </div>
+    );
+  };
+
   if (isLoading && isInitialLoad) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -164,11 +258,11 @@ export default function KaraokeRoom() {
     )
   }
   
-  if (error) {
+  if (roomError || streamError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <h1 className="text-2xl font-bold mb-4">Error</h1>
-        <p className="text-muted-foreground mb-4">{error}</p>
+        <p className="text-muted-foreground mb-4">{roomError || streamError}</p>
         <Button asChild>
           <Link href="/karaoke">Back to Rooms</Link>
         </Button>
@@ -231,18 +325,7 @@ export default function KaraokeRoom() {
       <div className="flex flex-1 overflow-hidden">
         {/* Karaoke display - Adjust for mobile */}
         <div className="flex-1 flex flex-col h-full relative animated-bg">
-          {/* Current singer - Make it more compact on mobile */}
-          <div className="absolute top-2 md:top-4 left-2 md:left-4 flex items-center bg-black/50 backdrop-blur-sm rounded-full px-2 md:px-3 py-1 md:py-1.5">
-            <Avatar className="h-5 w-5 md:h-6 md:w-6 mr-1 md:mr-2">
-              <AvatarImage src={room.host?.avatar_url} alt={room.host?.username} />
-              <AvatarFallback>{room.host?.username?.slice(0, 2)}</AvatarFallback>
-            </Avatar>
-            <span className="text-white text-xs md:text-sm">{room.host?.username}</span>
-            <Badge variant="outline" className="ml-1 md:ml-2 border-white/20 text-white bg-red-500/20 text-[10px] md:text-xs">
-              <Mic className="h-2 w-2 md:h-3 md:w-3 mr-0.5 md:mr-1" />
-              Singing
-            </Badge>
-          </div>
+          {renderHostBadge()}
           
           {/* Lyrics display - Adjust text sizes for mobile */}
           <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-4">
@@ -282,27 +365,22 @@ export default function KaraokeRoom() {
                     className="h-full bg-primary transition-all duration-100"
                     style={{ width: `${(currentTime / (room.current_song?.duration || 1)) * 100}%` }}
                   />
-            </div>
+                </div>
                 <span className="text-white text-xs md:text-sm min-w-[40px] text-right">
                   {formatTime(room.current_song?.duration || 0)}
                 </span>
-            </div>
-            
-              {/* Playback controls */}
-              <div className="flex items-center justify-center">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-                  onClick={togglePlayback}
-                >
-                  {room.current_song?.is_playing ? (
-                    <Pause className="h-6 w-6 text-white" />
-                  ) : (
-                    <Play className="h-6 w-6 text-white" />
-                  )}
-                </Button>
               </div>
+            
+              {/* Playback controls - Only show to host */}
+              {user?.id === room.host_id ? (
+                renderPlaybackControls()
+              ) : (
+                <div className="flex items-center justify-center">
+                  <Badge variant="secondary" className="text-sm">
+                    {room.current_song?.is_playing ? 'Playing' : 'Paused'}
+                  </Badge>
+                </div>
+              )}
             </div>
           </div>
         </div>

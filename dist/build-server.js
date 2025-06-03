@@ -1,10 +1,7 @@
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+"use strict";
+const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 // Create dist directory if it doesn't exist
 if (!fs.existsSync('dist')) {
     fs.mkdirSync('dist');
@@ -16,11 +13,10 @@ if (fs.existsSync('dist/server')) {
 // Compile TypeScript
 execSync('tsc -p tsconfig.server.json', { stdio: 'inherit' });
 // Copy package.json to dist
-const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+const packageJson = require('./package.json');
 const serverPackageJson = {
     name: packageJson.name,
     version: packageJson.version,
-    type: "module",
     main: 'server/socket.js',
     dependencies: {
         'socket.io': packageJson.dependencies['socket.io'],

@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'images.pexels.com', 'kvzicstyhxgiyewfsbqw.supabase.co'],
   },
   webpack: (config) => {
     config.externals.push({
@@ -13,4 +13,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

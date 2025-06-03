@@ -10,6 +10,7 @@ import { Chrome } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic'
 
@@ -128,7 +129,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex justify-center">
           <Button variant="link" onClick={() => router.push('/auth/signup')}>
-            Don't have an account? Sign up
+            Don&apos;t have an account? Sign up
           </Button>
         </CardFooter>
       </Card>

@@ -96,7 +96,7 @@ export default function KaraokeRoom() {
         })
       }
     }
-  }, [roomId, user, authLoading])
+  }, [roomId, user, authLoading, joinRoom, router])
 
   useEffect(() => {
     if (isInitialLoad) {
@@ -108,16 +108,17 @@ export default function KaraokeRoom() {
   // Add streaming state effect
   useEffect(() => {
     if (user?.id === room?.host_id && !isStreaming) {
-      startStreaming().catch((err) => {
+      startStreaming().catch((error) => {
         toast({
           variant: "destructive",
           title: "Streaming Error",
-          description: err.message || "Failed to start streaming",
+          description: error.message || "Failed to start streaming",
           duration: 5000,
         });
+        console.error('Streaming error:', error);
       });
     }
-  }, [user?.id, room?.host_id, isStreaming]);
+  }, [user?.id, room?.host_id, isStreaming, startStreaming, toast]);
 
   const handleLeaveRoom = async () => {
     await leaveRoom(roomId)
@@ -154,7 +155,10 @@ export default function KaraokeRoom() {
     return (
       <div className="absolute top-2 md:top-4 left-2 md:left-4 flex items-center bg-black/50 backdrop-blur-sm rounded-full px-2 md:px-3 py-1 md:py-1.5">
         <Avatar className="h-5 w-5 md:h-6 md:w-6 mr-1 md:mr-2">
-          <AvatarImage src={room.host?.avatar_url || undefined} alt={room.host?.username || ''} />
+        <AvatarImage
+  src={room.host?.avatar_url ?? undefined}
+  alt={room.host?.username ?? undefined}
+/>
           <AvatarFallback>{room.host?.username?.slice(0, 2)}</AvatarFallback>
         </Avatar>
         <span className="text-white text-xs md:text-sm">{room.host?.username}</span>
