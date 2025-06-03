@@ -1,0 +1,11 @@
+{
+  "name": "nextjs",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "server/socket.js",
+  "dependencies": {
+    "socket.io": "^4.7.5",
+    "next": "13.5.1",
+    "dotenv": "^16.4.5"
+  }
+}

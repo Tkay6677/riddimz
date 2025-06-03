@@ -9,7 +9,7 @@ export function useUpload() {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const uploadFile = async (file: File, bucket: string, path: string) => {
+  const uploadFile = async (file: File, bucket: string, path: string): Promise<string> => {
     try {
       setUploading(true);
       setError(null);
