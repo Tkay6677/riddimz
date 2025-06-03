@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { Session, User } from '@supabase/supabase-js';
@@ -22,34 +22,44 @@ export default function SupabaseProvider({
 }: {
   children: React.ReactNode
 }) {
+  console.log('SupabaseProvider rendered');
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  // Memoize the Supabase client so it's not recreated on every render
+  const supabase = useRef(createClientComponentClient()).current;
+  // Track previous user id to detect real changes
+  const prevUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      prevUserIdRef.current = session?.user?.id ?? null;
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-      router.refresh();
+    } = supabase.auth.onAuthStateChange((event: string, session: Session | null) => {
+      const newUserId = session?.user?.id ?? null;
+      // Only update state and refresh router if user id actually changes
+      if (prevUserIdRef.current !== newUserId) {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+        prevUserIdRef.current = newUserId;
+        router.refresh();
+      }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [router, supabase]);
+  }, [router]);
 
   return (
     <Context.Provider value={{ user, session, loading }}>

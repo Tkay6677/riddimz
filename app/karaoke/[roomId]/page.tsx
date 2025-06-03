@@ -104,8 +104,8 @@ export default function KaraokeRoom() {
       // ... error handling ...
     } finally {
       setIsLoading(false)
+      }
     }
-  }
 
   const handleLeaveRoom = async () => {
     await leaveRoom(roomId)
@@ -163,7 +163,7 @@ export default function KaraokeRoom() {
       </div>
     )
   }
-
+  
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
@@ -282,12 +282,12 @@ export default function KaraokeRoom() {
                     className="h-full bg-primary transition-all duration-100"
                     style={{ width: `${(currentTime / (room.current_song?.duration || 1)) * 100}%` }}
                   />
-                </div>
+            </div>
                 <span className="text-white text-xs md:text-sm min-w-[40px] text-right">
                   {formatTime(room.current_song?.duration || 0)}
                 </span>
-              </div>
-
+            </div>
+            
               {/* Playback controls */}
               <div className="flex items-center justify-center">
                 <Button 
@@ -361,7 +361,7 @@ export default function KaraokeRoom() {
                       <p className="font-medium">{participant.user.username}</p>
                       {participant.user.id === room.host_id && (
                         <Badge variant="secondary" className="text-xs">Host</Badge>
-                      )}
+                            )}
                       </div>
                     </div>
                   ))}
@@ -383,7 +383,7 @@ export default function KaraokeRoom() {
                           <span className="text-xs text-muted-foreground">
                             {new Date(message.timestamp).toLocaleTimeString()}
                           </span>
-                        </div>
+                          </div>
                         <p className="text-sm">{message.content}</p>
                         </div>
                       </div>

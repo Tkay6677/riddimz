@@ -2,31 +2,41 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase-client';
 import type { User } from '@supabase/supabase-js';
+
+import { useMemo } from 'react';
 
 export function useAuth() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const supabase = getSupabaseClient();
 
   useEffect(() => {
+    let mounted = true;
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
+      if (mounted) {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
+      if (mounted) {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Empty dependency array since we're using the singleton client
 
   const signUp = async (email: string, password: string, username: string) => {
     try {
@@ -82,12 +92,12 @@ export function useAuth() {
     }
   };
 
-  return {
+  return useMemo(() => ({
     user,
     loading,
     signUp,
     signIn,
     signInWithGoogle,
     signOut
-  };
+  }), [user, loading]);
 } 

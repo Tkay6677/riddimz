@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 
@@ -12,11 +12,13 @@ type AppContextType = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  console.log('AppProvider rendered');
   const auth = useAuth();
-  const profile = useProfile();
+  const profile = useProfile(auth.user);
+  const value = useMemo(() => ({ auth, profile }), [auth, profile]);
 
   return (
-    <AppContext.Provider value={{ auth, profile }}>
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   );

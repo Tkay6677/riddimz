@@ -255,7 +255,7 @@ export default function Profile() {
       })
     }
   }
-
+  
   const handleProfileUpdate = async () => {
     try {
       const { error } = await supabase
@@ -274,7 +274,7 @@ export default function Profile() {
         title: "Profile updated successfully",
         duration: 3000
       })
-      setIsEditing(false)
+    setIsEditing(false)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -291,7 +291,7 @@ export default function Profile() {
       </div>
     )
   }
-
+  
   return (
     <div className="container px-4 max-w-7xl mx-auto py-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -459,7 +459,7 @@ export default function Profile() {
                 My Rooms
               </TabsTrigger>
             </TabsList>
-
+            
             <TabsContent value="history" className="space-y-4">
               {karaokeHistory.map((performance) => (
                 <Card key={performance.id}>
@@ -476,14 +476,14 @@ export default function Profile() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                ))}
               {karaokeHistory.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   No performance history yet
-                </div>
+              </div>
               )}
             </TabsContent>
-
+            
             <TabsContent value="songs" className="space-y-4">
               {userSongs.map((song) => (
                 <Card key={song.id}>
@@ -503,20 +503,20 @@ export default function Profile() {
                             <Music className="h-8 w-8 text-muted-foreground" />
                           </div>
                         )}
-                      </div>
+                            </div>
                       <div className="flex-1">
                         <h3 className="font-semibold">{song.title}</h3>
                         <p className="text-sm text-muted-foreground">{song.artist}</p>
                         <p className="text-xs text-muted-foreground">
                           Added {new Date(song.created_at).toLocaleDateString()}
                         </p>
-                      </div>
+                            </div>
                       <Button variant="ghost" size="icon">
                         <PlayCircle className="h-5 w-5" />
-                      </Button>
+                            </Button>
                     </div>
-                  </CardContent>
-                </Card>
+                </CardContent>
+              </Card>
               ))}
               {userSongs.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
@@ -524,7 +524,7 @@ export default function Profile() {
                 </div>
               )}
             </TabsContent>
-
+            
             <TabsContent value="rooms" className="space-y-4">
               {userRooms.map((room) => (
                 <Card key={room.id}>
@@ -544,8 +544,8 @@ export default function Profile() {
                         </span>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                </CardContent>
+              </Card>
               ))}
               {userRooms.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">

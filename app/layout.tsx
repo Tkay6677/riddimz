@@ -16,13 +16,13 @@ export const metadata: Metadata = {
   description: 'A decentralized karaoke platform powered by blockchain technology',
 };
 
-export const dynamic = 'force-dynamic'
 
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  console.log('RootLayout rendered');
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
@@ -34,18 +34,18 @@ export default function RootLayout({
         >
           <SupabaseProvider>
             <AppProvider>
-              <WalletContextProvider>
-                <div className="flex h-screen overflow-hidden bg-background">
-                  <Sidebar />
-                  <div className="flex flex-col flex-1 overflow-hidden">
-                    <Header />
-                    <main className="flex-1 overflow-y-auto py-2">
-                      {children}
-                    </main>
-                  </div>
-                </div>
-                <Toaster />
-              </WalletContextProvider>
+          <WalletContextProvider>
+            <div className="flex h-screen overflow-hidden bg-background">
+              <Sidebar />
+              <div className="flex flex-col flex-1 overflow-hidden">
+                <Header />
+                <main className="flex-1 overflow-y-auto py-2">
+                  {children}
+                </main>
+              </div>
+            </div>
+            <Toaster />
+          </WalletContextProvider>
             </AppProvider>
           </SupabaseProvider>
         </ThemeProvider>

@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from './useAuth';
+import type { User } from '@supabase/supabase-js';
 
-export function useProfile() {
+import { useMemo } from 'react';
+
+export function useProfile(user: User | null) {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
 
   useEffect(() => {
     if (user) {
@@ -73,11 +74,11 @@ export function useProfile() {
     }
   };
 
-  return {
+  return useMemo(() => ({
     profile,
     loading,
     error,
     updateProfile,
     refreshProfile: fetchProfile
-  };
+  }), [profile, loading, error, updateProfile, fetchProfile]);
 } 

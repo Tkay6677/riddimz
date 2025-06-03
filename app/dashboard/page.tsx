@@ -11,14 +11,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { 
   Music, Mic, Upload, Users, Clock, Heart, 
   PlayCircle, Plus, Trash2, Edit2, Settings,
   FileAudio, FileText, Star, Award, TrendingUp,
   Filter, Sparkles
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useToast } from '@/components/ui/use-toast';
 
 interface Song {
@@ -53,13 +53,18 @@ const GENRES = [
   'Blues', 'Reggae', 'Latin', 'World', 'Other'
 ];
 
-export const dynamic = 'force-dynamic'
+// Disable automatic revalidation and use client-side data fetching
+// This prevents the page from refreshing when it loses focus
+export const dynamic = 'force-static';
+export const revalidate = false;
 
 export default function DashboardPage() {
+  console.log('DashboardPage rendered');
   const { user, loading: authLoading } = useAuth();
-  const { profile, loading: profileLoading } = useProfile();
+  const { profile, loading: profileLoading } = useProfile(user);
   const router = useRouter();
   const { toast } = useToast();
+  const supabase = createClientComponentClient();
   const [songs, setSongs] = useState<Song[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -73,22 +78,23 @@ export default function DashboardPage() {
   const [isNft, setIsNft] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
   const [selectedGenre, setSelectedGenre] = useState<string>('');
-  const [loading, setLoading] = useState(true);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
+  // SSR-safe: set initial to true, update in useEffect
+  const [isVisible, setIsVisible] = useState(true);
+  const [isMounted, setIsMounted] = useState(true);
+  
+  // Set isMounted to true when component mounts and false when it unmounts
   useEffect(() => {
-    if (!authLoading && user) {
-      loadDashboardData();
-    }
-  }, [authLoading, user]);
-
-  const loadDashboardData = async () => {
-    if (!user) return;
-
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+  
+  // Function to load songs
+  const loadSongs = useCallback(async () => {
+    console.log('loadSongs called', { userId: user?.id, isMounted, isVisible });
+    if (!user?.id || !isMounted || !isVisible) return;
+    
     try {
-      setLoading(true);
-
-      // Load user's songs
       let query = supabase
         .from('songs')
         .select('*')
@@ -124,9 +130,34 @@ export default function DashboardPage() {
           cover_url: song.cover_url ? supabase.storage.from('karaoke-songs').getPublicUrl(song.cover_url).data.publicUrl : null
         }));
         setSongs(songsWithUrls);
+        
+        // Cache the songs in sessionStorage
+        try {
+          sessionStorage.setItem('dashboard_songs', JSON.stringify(songsWithUrls));
+        } catch (e) {
+          console.error('Error caching songs:', e);
+        }
       }
+    } catch (error: any) {
+      console.error('Error loading songs:', error);
+      toast({
+        variant: "destructive",
+        title: "Error loading songs",
+        description: error.message || "Failed to load your songs. Please try again.",
+        duration: 5000,
+      });
+    } finally {
+     // setLoading(false);
+    }
+  }, [user?.id, filter, selectedGenre, supabase, toast, isMounted]);
 
-      // Load user's rooms
+  // Function to load rooms
+  const loadRooms = useCallback(async () => {
+    console.log('loadRooms called', { userId: user?.id, isMounted, isVisible });
+    if (!user?.id || !isMounted || !isVisible) return;
+    
+    try {
+     // setLoading(true);
       const { data: roomsData, error: roomsError } = await supabase
         .from('karaoke_rooms')
         .select(`
@@ -142,24 +173,55 @@ export default function DashboardPage() {
       if (roomsError) throw roomsError;
 
       if (roomsData) {
-        setRooms(roomsData.map(room => ({
+        const transformedRooms = roomsData.map(room => ({
           ...room,
           participants_count: room.participants?.[0]?.count || 0
-        })));
+        }));
+        
+        setRooms(transformedRooms);
+        
+        // Cache the rooms in sessionStorage
+        try {
+          sessionStorage.setItem('dashboard_rooms', JSON.stringify(transformedRooms));
+        } catch (e) {
+          console.error('Error caching rooms:', e);
+        }
       }
     } catch (error: any) {
-      console.error('Error loading content:', error);
+      console.error('Error loading rooms:', error);
       toast({
         variant: "destructive",
-        title: "Error loading content",
-        description: error.message || "Failed to load your content. Please try again.",
+        title: "Error loading rooms",
+        description: error.message || "Failed to load your rooms. Please try again.",
         duration: 5000,
       });
     } finally {
-      setLoading(false);
-      setIsInitialLoad(false);
+   //   setLoading(false);
     }
-  };
+  }, [user?.id, supabase, toast]);
+
+  // Main effect for data loading and caching
+  useEffect(() => {
+    if (!user) return;
+
+    // Try to load from cache
+    const cachedSongs = sessionStorage.getItem('dashboard_songs');
+    const cachedRooms = sessionStorage.getItem('dashboard_rooms');
+
+    if (cachedSongs) {
+      setSongs(JSON.parse(cachedSongs));
+    } else {
+      loadSongs();
+    }
+
+    if (cachedRooms) {
+      setRooms(JSON.parse(cachedRooms));
+    } else {
+      loadRooms();
+    }
+
+    // removed setLoading(false)
+  }, [user]);
 
   const handleSongUpload = async () => {
     if (!user || !songFile || !songTitle || !songArtist) {
@@ -173,7 +235,7 @@ export default function DashboardPage() {
     }
 
     try {
-      setUploading(true);
+      //setUploading(true);
 
       // Get audio duration
       const audio = new Audio();
@@ -246,7 +308,7 @@ export default function DashboardPage() {
         duration: 5000,
       });
 
-      loadDashboardData();
+      loadSongs();
     } catch (error: any) {
       console.error('Error uploading song:', error);
       toast({
@@ -278,7 +340,7 @@ export default function DashboardPage() {
         duration: 3000,
       });
 
-      loadDashboardData();
+      loadSongs();
     } catch (error: any) {
       console.error('Error deleting song:', error);
       toast({
@@ -290,21 +352,7 @@ export default function DashboardPage() {
     }
   };
 
-  if (loading && isInitialLoad) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
-  if (profileLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto py-8">
@@ -312,14 +360,25 @@ export default function DashboardPage() {
         {/* User Profile Card */}
         <Card>
           <CardHeader>
-            <div className="flex items-center space-x-4">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={profile?.avatar_url} />
-                <AvatarFallback>{profile?.username?.slice(0, 2)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle className="text-2xl">{profile?.username}</CardTitle>
-                <CardDescription>Member since {new Date(profile?.created_at).toLocaleDateString()}</CardDescription>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={profile?.avatar_url} />
+                  <AvatarFallback>{profile?.username?.slice(0, 2)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="text-xl font-semibold">{profile?.username}</div>
+                  <div className="text-sm text-muted-foreground">{profile?.email}</div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={async () => {
+                  await Promise.all([loadSongs(), loadRooms()]);
+                  toast({ title: 'Dashboard refreshed!' });
+                }}>
+                  Refresh
+                </Button>
+                {/* Settings, Edit, etc. buttons here */}
               </div>
             </div>
           </CardHeader>
