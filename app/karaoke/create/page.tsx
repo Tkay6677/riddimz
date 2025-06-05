@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,9 +37,6 @@ export default function CreateKaraokeRoom() {
       minScoreToJoin: 0
     }
   });
-  const [selectedSongs, setSelectedSongs] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState<any>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'song' | 'lyrics') => {
     if (e.target.files && e.target.files[0]) {
@@ -119,24 +116,6 @@ export default function CreateKaraokeRoom() {
       setIsCreating(false);
     }
   };
-
-  const loadUserSongs = async () => {
-    try {
-      const response = await fetch('/api/songs/user');
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-      }
-    } catch (error) {
-      console.error('Error loading user songs:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      loadUserSongs();
-    }
-  }, [user, loadUserSongs]);
 
   return (
     <div className="container max-w-2xl py-8">

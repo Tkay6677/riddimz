@@ -128,9 +128,12 @@ export default function LoginPage() {
           </Button>
         </CardContent>
         <CardFooter className="flex justify-center">
-          <Button variant="link" onClick={() => router.push('/auth/signup')}>
-            Don&apos;t have an account? Sign up
-          </Button>
+          <p className="text-sm text-muted-foreground">
+            Don&apos;t have an account?{' '}
+            <Link href="/auth/register" className="text-primary hover:underline">
+              Sign up
+            </Link>
+          </p>
         </CardFooter>
       </Card>
     </div>

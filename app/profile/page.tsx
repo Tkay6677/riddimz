@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -105,7 +105,17 @@ export default function Profile() {
   const supabase = createClientComponentClient()
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
-  const loadUserProfile = useCallback(async () => {
+  useEffect(() => {
+    if (user && isInitialLoad) {
+      loadUserProfile()
+      loadKaraokeHistory()
+      loadUserSongs()
+      loadUserRooms()
+      setIsInitialLoad(false)
+    }
+  }, [user, isInitialLoad])
+
+  const loadUserProfile = async () => {
     try {
       setLoading(true)
       const { data: profile, error } = await supabase
@@ -138,9 +148,9 @@ export default function Profile() {
     } finally {
       setLoading(false)
     }
-  }, [user?.id, supabase, toast]);
+  }
 
-  const loadKaraokeHistory = useCallback(async () => {
+  const loadKaraokeHistory = async () => {
     try {
       // First get the performances
       const { data: performances, error: performancesError } = await supabase
@@ -195,9 +205,9 @@ export default function Profile() {
         description: error.message
       })
     }
-  }, [user?.id, supabase, toast]);
+  }
 
-  const loadUserSongs = useCallback(async () => {
+  const loadUserSongs = async () => {
     try {
       const { data: songs, error } = await supabase
         .from('songs')
@@ -222,9 +232,9 @@ export default function Profile() {
         description: error.message
       })
     }
-  }, [user?.id, supabase, toast]);
+  }
 
-  const loadUserRooms = useCallback(async () => {
+  const loadUserRooms = async () => {
     try {
       const { data: rooms, error } = await supabase
         .from('karaoke_rooms')
@@ -244,8 +254,8 @@ export default function Profile() {
         description: error.message
       })
     }
-  }, [user?.id, supabase, toast]);
-
+  }
+  
   const handleProfileUpdate = async () => {
     try {
       const { error } = await supabase
@@ -264,7 +274,7 @@ export default function Profile() {
         title: "Profile updated successfully",
         duration: 3000
       })
-      setIsEditing(false)
+    setIsEditing(false)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -273,15 +283,6 @@ export default function Profile() {
       })
     }
   }
-
-  useEffect(() => {
-    if (user) {
-      loadKaraokeHistory();
-      loadUserProfile();
-      loadUserRooms();
-      loadUserSongs();
-    }
-  }, [user, loadKaraokeHistory, loadUserProfile, loadUserRooms, loadUserSongs]);
 
   if (loading && isInitialLoad) {
     return (

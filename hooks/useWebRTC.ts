@@ -19,8 +19,13 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Initialize Socket.IO connection
-    socketRef.current = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001');
+    // Initialize Socket.IO connection with reconnection options
+    socketRef.current = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001', {
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 10000
+    });
 
     // Join room
     socketRef.current.emit('join-room', roomId, userId, isHost);
@@ -32,7 +37,16 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
           const peer = new SimplePeer({
             initiator: false,
             trickle: false,
-            stream: undefined // Participants don't send stream
+            stream: undefined, // Participants don't send stream
+            config: {
+              iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
+              ]
+            }
           });
 
           peer.on('signal', (data) => {
@@ -75,6 +89,11 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
       }
     });
 
+    socketRef.current.on('connect_error', (err) => {
+      console.error('Socket connection error:', err);
+      setError('Failed to connect to server');
+    });
+
     return () => {
       stopStreaming();
       socketRef.current?.disconnect();
@@ -108,7 +127,10 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
           ]
         }
       });

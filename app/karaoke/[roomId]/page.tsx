@@ -15,6 +15,17 @@ import { cn } from '@/lib/utils'
 import { useKaraokeRoom } from '@/hooks/useKaraokeRoom'
 import { useAuth } from '@/hooks/useAuth'
 import { useWebRTC } from '@/hooks/useWebRTC'
+import io, { Socket } from 'socket.io-client'
+
+interface User {
+  id: string;
+  user_metadata?: {
+    username?: string;
+    avatar_url?: string | null;
+  };
+  email?: string;
+  name?: string;
+}
 
 interface ChatMessage {
   id: string;
@@ -34,7 +45,7 @@ export default function KaraokeRoom() {
   const router = useRouter()
   const { toast } = useToast()
   const roomId = params.roomId as string
-  const { room, loading: roomLoading, error: roomError, currentTime, currentLyric, nextLyrics, joinRoom, leaveRoom, togglePlayback, sendMessage, messages = [] } = useKaraokeRoom()
+  const { room, loading: roomLoading, error: roomError, currentTime, currentLyric, nextLyrics, joinRoom, leaveRoom, togglePlayback } = useKaraokeRoom()
   const { user, loading: authLoading } = useAuth()
   const {
     startStreaming,
@@ -55,6 +66,7 @@ export default function KaraokeRoom() {
   const [isLoading, setIsLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [isMicMuted, setIsMicMuted] = useState(false)
+  const [socket, setSocket] = useState<Socket | null>(null)
   
   // Check for mobile viewport
   useEffect(() => {
@@ -71,14 +83,7 @@ export default function KaraokeRoom() {
     if (chatRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight
     }
-  }, [messages])
-
-  // Update local messages when messages prop changes
-  useEffect(() => {
-    if (messages) {
-      setLocalMessages(messages)
-    }
-  }, [messages])
+  }, [localMessages])
 
   useEffect(() => {
     if (!authLoading) {
@@ -87,7 +92,7 @@ export default function KaraokeRoom() {
         return
       }
       
-      if (roomId) {
+      if (roomId && !room) {
         joinRoom(roomId).catch((err) => {
           console.error('Error joining room:', err)
           if (err.message === 'Not authenticated') {
@@ -96,7 +101,7 @@ export default function KaraokeRoom() {
         })
       }
     }
-  }, [roomId, user, authLoading, joinRoom, router])
+  }, [roomId, user, authLoading, room])
 
   useEffect(() => {
     if (isInitialLoad) {
@@ -105,20 +110,101 @@ export default function KaraokeRoom() {
     }
   }, [isInitialLoad])
 
+  // Initialize chat socket connection
+  useEffect(() => {
+    if (!user || !roomId) return;
+
+    const chatSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001', {
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+      query: { type: 'chat' }
+    });
+
+    chatSocket.on('connect', () => {
+      console.log('Chat socket connected:', chatSocket.id);
+      chatSocket.emit('join-room', roomId, user.id, user.id === room?.host_id);
+    });
+
+    chatSocket.on('connect_error', (error) => {
+      console.error('Chat socket connection error:', error);
+    });
+
+    chatSocket.on('disconnect', (reason) => {
+      console.log('Chat socket disconnected:', reason);
+      if (reason === 'io server disconnect') {
+        chatSocket.connect();
+      }
+    });
+
+    chatSocket.on('error', (error) => {
+      console.error('Chat socket error:', error);
+    });
+
+    // Add socket listener for chat messages
+    chatSocket.on('chat-message', (message: ChatMessage) => {
+      console.log('Received chat message:', message);
+      setLocalMessages(prev => {
+        if (prev.some(m => m.id === message.id)) {
+          return prev;
+        }
+        return [...prev, message];
+      });
+    });
+
+    setSocket(chatSocket);
+
+    return () => {
+      if (chatSocket) {
+        chatSocket.off('chat-message');
+        chatSocket.off('connect');
+        chatSocket.off('connect_error');
+        chatSocket.off('disconnect');
+        chatSocket.off('error');
+        chatSocket.disconnect();
+      }
+    };
+  }, [user, roomId, room?.host_id]);
+
   // Add streaming state effect
   useEffect(() => {
-    if (user?.id === room?.host_id && !isStreaming) {
-      startStreaming().catch((error) => {
-        toast({
-          variant: "destructive",
-          title: "Streaming Error",
-          description: error.message || "Failed to start streaming",
-          duration: 5000,
-        });
-        console.error('Streaming error:', error);
-      });
-    }
-  }, [user?.id, room?.host_id, isStreaming, startStreaming, toast]);
+    let isMounted = true;
+
+    const startHostStream = async () => {
+      if (!isMounted) return;
+      
+      if (user?.id === room?.host_id && !isStreaming && !streamError) {
+        try {
+          // Wait for socket to be fully connected
+          if (!socket?.connected) {
+            console.log('Waiting for socket connection...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          
+          console.log('Starting stream...');
+          await startStreaming();
+        } catch (err: any) {
+          console.error('Streaming error:', err);
+          if (isMounted) {
+            toast({
+              variant: "destructive",
+              title: "Streaming Error",
+              description: err?.message || "Failed to start streaming",
+              duration: 5000,
+            });
+          }
+        }
+      }
+    };
+
+    startHostStream();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, room?.host_id, isStreaming, streamError, startStreaming, toast, socket]);
 
   const handleLeaveRoom = async () => {
     await leaveRoom(roomId)
@@ -127,12 +213,27 @@ export default function KaraokeRoom() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!chatMessage.trim()) return
+    if (!chatMessage.trim() || !user || !socket || !roomId) return
 
     try {
-      await sendMessage(chatMessage)
-      setChatMessage('')
+      const message: ChatMessage = {
+        id: crypto.randomUUID(),
+        content: chatMessage,
+        timestamp: new Date().toISOString(),
+        user: {
+          id: user.id,
+          username: user.user_metadata?.username || 'Anonymous',
+          avatar_url: user.user_metadata?.avatar_url || null
+        }
+      };
+
+      console.log('Sending chat message:', message);
+      socket.emit('chat-message', roomId, message);
+      
+      setLocalMessages(prev => [...prev, message]);
+      setChatMessage('');
     } catch (error: any) {
+      console.error('Error sending message:', error);
       toast({
         variant: "destructive",
         title: "Error sending message",
@@ -155,10 +256,7 @@ export default function KaraokeRoom() {
     return (
       <div className="absolute top-2 md:top-4 left-2 md:left-4 flex items-center bg-black/50 backdrop-blur-sm rounded-full px-2 md:px-3 py-1 md:py-1.5">
         <Avatar className="h-5 w-5 md:h-6 md:w-6 mr-1 md:mr-2">
-        <AvatarImage
-  src={room.host?.avatar_url ?? undefined}
-  alt={room.host?.username ?? undefined}
-/>
+          <AvatarImage src={room.host?.avatar_url || undefined} alt={room.host?.username || ''} />
           <AvatarFallback>{room.host?.username?.slice(0, 2)}</AvatarFallback>
         </Avatar>
         <span className="text-white text-xs md:text-sm">{room.host?.username}</span>
@@ -449,29 +547,30 @@ export default function KaraokeRoom() {
             {activePanel === 'chat' && (
               <div className="flex flex-col h-full">
                 <div ref={chatRef} className="flex-1 p-4 space-y-4 overflow-y-auto">
-                  {localMessages.map((message, index) => (
-                    <div key={message.id || index} className="flex items-start space-x-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={message.user.avatar_url || undefined} alt={message.user.username} />
-                        <AvatarFallback>{message.user.username.slice(0, 2)}</AvatarFallback>
+                  {localMessages.length > 0 ? (
+                    localMessages.map((message, index) => (
+                      <div key={message.id || index} className="flex items-start space-x-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={message.user?.avatar_url || undefined} alt={message.user?.username || 'User'} />
+                          <AvatarFallback>{message.user?.username?.slice(0, 2) || 'U'}</AvatarFallback>
                         </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium">{message.user.username}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(message.timestamp).toLocaleTimeString()}
-                          </span>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium">{message.user?.username || 'Anonymous'}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(message.timestamp).toLocaleTimeString()}
+                            </span>
                           </div>
-                        <p className="text-sm">{message.content}</p>
+                          <p className="text-sm">{message.content}</p>
                         </div>
                       </div>
-                    ))}
-                  {localMessages.length === 0 && (
+                    ))
+                  ) : (
                     <div className="text-center text-muted-foreground py-4">
                       No messages yet. Start the conversation!
                     </div>
                   )}
-                  </div>
+                </div>
                 <form onSubmit={handleSendMessage} className="p-4 border-t">
                   <div className="flex space-x-2">
                     <Input 
@@ -483,7 +582,7 @@ export default function KaraokeRoom() {
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
-                  </form>
+                </form>
               </div>
             )}
             
