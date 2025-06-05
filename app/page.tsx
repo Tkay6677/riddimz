@@ -6,7 +6,7 @@ import { KaraokeRooms } from "@/components/home/karaoke-rooms";
 import Link from "next/link";
 
 export const dynamic = 'force-dynamic'
-
+//....
 export default function Home() {
   return (
     <div className="container px-4 py-6 max-w-7xl mx-auto">
