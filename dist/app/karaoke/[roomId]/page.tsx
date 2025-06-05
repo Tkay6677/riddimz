@@ -327,7 +327,7 @@ export default function KaraokeRoom() {
       </div>
     );
   };
-  
+
   if (isLoading && isInitialLoad) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -473,11 +473,11 @@ export default function KaraokeRoom() {
               {user?.id === room.host_id ? (
                 renderPlaybackControls()
               ) : (
-              <div className="flex items-center justify-center">
+                <div className="flex items-center justify-center">
                   <Badge variant="secondary" className="text-sm">
                     {room.current_song?.is_playing ? 'Playing' : 'Paused'}
                   </Badge>
-              </div>
+                </div>
               )}
             </div>
           </div>
@@ -549,19 +549,19 @@ export default function KaraokeRoom() {
                 <div ref={chatRef} className="flex-1 p-4 space-y-4 overflow-y-auto">
                   {localMessages.length > 0 ? (
                     localMessages.map((message, index) => (
-                    <div key={message.id || index} className="flex items-start space-x-3">
-                      <Avatar className="h-8 w-8">
+                      <div key={message.id || index} className="flex items-start space-x-3">
+                        <Avatar className="h-8 w-8">
                           <AvatarImage src={message.user?.avatar_url || undefined} alt={message.user?.username || 'User'} />
                           <AvatarFallback>{message.user?.username?.slice(0, 2) || 'U'}</AvatarFallback>
                         </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
                             <span className="font-medium">{message.user?.username || 'Anonymous'}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(message.timestamp).toLocaleTimeString()}
-                          </span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(message.timestamp).toLocaleTimeString()}
+                            </span>
                           </div>
-                        <p className="text-sm">{message.content}</p>
+                          <p className="text-sm">{message.content}</p>
                         </div>
                       </div>
                     ))
@@ -570,7 +570,7 @@ export default function KaraokeRoom() {
                       No messages yet. Start the conversation!
                     </div>
                   )}
-                  </div>
+                </div>
                 <form onSubmit={handleSendMessage} className="p-4 border-t">
                   <div className="flex space-x-2">
                     <Input 
@@ -582,7 +582,7 @@ export default function KaraokeRoom() {
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
-                  </form>
+                </form>
               </div>
             )}
             
