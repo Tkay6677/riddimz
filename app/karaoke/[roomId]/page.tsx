@@ -20,7 +20,17 @@ import { useKaraokeRoom } from '@/hooks/useKaraokeRoom'
 import { useAuth } from '@/hooks/useAuth'
 import { useWebRTC } from '@/hooks/useWebRTC'
 import io, { Socket } from 'socket.io-client'
-import { StreamVideo, StreamVideoClient, StreamCall, CallControls, SpeakerLayout, useCall, useCallStateHooks, OwnCapability } from '@stream-io/video-react-sdk'
+import { 
+  StreamVideo, 
+  StreamVideoClient, 
+  StreamCall, 
+  CallControls, 
+  SpeakerLayout, 
+  useCall, 
+  useCallStateHooks, 
+  OwnCapability,
+  PermissionRequestEvent 
+} from '@stream-io/video-react-sdk'
 import '@stream-io/video-react-sdk/dist/css/styles.css'
 import { JoinStreamModal } from '@/components/JoinStreamModal'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -45,13 +55,6 @@ interface ChatMessage {
     username: string;
     avatar_url: string | null;
   };
-}
-
-interface PermissionRequest {
-  userId: string;
-  username: string;
-  avatar_url?: string | null;
-  permissions: string[];
 }
 
 export const dynamic = 'force-dynamic'
@@ -203,25 +206,44 @@ export default function KaraokeRoom() {
   useEffect(() => {
     let isMounted = true;
 
-    const startHostStream = async () => {
-      if (!isMounted) return;
+    const setupStreamingState = async () => {
+      if (!isMounted || !call) return;
       
-      if (user?.id === room?.host_id && !isStreaming && !streamError && call) {
-        // Don't auto-start streaming, wait for user interaction
-        if (!hasUserInteracted) {
-          return;
-        }
-        
+      // Check if we've had user interaction yet
+      if (!hasUserInteracted) {
+        // Don't auto-start streaming, wait for user interaction via the JoinStreamModal
+        return;
+      }
+      
+      // For host, we initialize streaming when they have interaction
+      if (user?.id === room?.host_id && !isStreaming) {
         try {
-          console.log('Starting streaming');
+          console.log('Host initializing streaming after user interaction');
           await startStreaming();
         } catch (err: any) {
-          console.error('Streaming error:', err);
+          console.error('Host streaming initialization error:', err);
           if (isMounted) {
             toast({
               variant: "destructive",
               title: "Streaming Error",
-              description: err?.message || "Failed to start streaming",
+              description: err?.message || "Failed to initialize streaming",
+              duration: 5000,
+            });
+          }
+        }
+      } 
+      // For participants, we ensure they can receive audio after interaction
+      else if (user?.id !== room?.host_id) {
+        try {
+          console.log('Participant preparing to receive audio after user interaction');
+          await startStreaming(); // This will put them in receive-only mode
+        } catch (err: any) {
+          console.error('Participant streaming initialization error:', err);
+          if (isMounted) {
+            toast({
+              variant: "destructive",
+              title: "Streaming Error",
+              description: err?.message || "Failed to initialize audio reception",
               duration: 5000,
             });
           }
@@ -229,12 +251,12 @@ export default function KaraokeRoom() {
       }
     };
 
-    startHostStream();
+    setupStreamingState();
 
     return () => {
       isMounted = false;
     };
-  }, [user?.id, room?.host_id, isStreaming, streamError, startStreaming, toast, call, hasUserInteracted]);
+  }, [user?.id, room?.host_id, isStreaming, startStreaming, toast, call, hasUserInteracted]);
 
   const handleLeaveRoom = async () => {
     await leaveRoom(roomId)
@@ -460,28 +482,31 @@ export default function KaraokeRoom() {
   return (
     <StreamVideo client={videoClient}>
       <StreamCall call={call}>
-    <div className="flex flex-col h-screen bg-background">
+        <div className="hidden">
+          <SpeakerLayout />
+        </div>
+        <div className="flex flex-col h-screen bg-background">
           {!hasUserInteracted && (
             <JoinStreamModal 
-              onJoin={startStreaming}
+              onJoin={handleJoinStream}
               isHost={user?.id === room?.host_id}
             />
           )}
           <div className="flex items-center justify-between p-4 border-b">
             <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/karaoke">
+              <Button variant="ghost" size="icon" asChild>
+                <Link href="/karaoke">
                   <ChevronLeft className="h-5 w-5" />
-            </Link>
-          </Button>
-          <div>
+                </Link>
+              </Button>
+              <div>
                 <h1 className="text-xl font-semibold">{room.name}</h1>
                 <p className="text-sm text-muted-foreground">
-              Hosted by {room.host?.username}
-            </p>
-          </div>
-        </div>
-        
+                  Hosted by {room.host?.username}
+                </p>
+              </div>
+            </div>
+            
             {user?.id === room.host_id && (
               <div className="flex items-center space-x-2">
                 <Button 
@@ -493,7 +518,7 @@ export default function KaraokeRoom() {
                   }}
                 >
                   {isMicMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-          </Button>
+                </Button>
                 <Button
                   variant="destructive"
                   size="sm"
@@ -503,15 +528,14 @@ export default function KaraokeRoom() {
                   }}
                 >
                   End Stream
-          </Button>
-        </div>
+                </Button>
+              </div>
             )}
-      </div>
-      
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 flex flex-col h-full relative animated-bg">
-          {renderHostBadge()}
+          </div>
           
+          <div className="flex flex-1 overflow-hidden">
+            <div className="flex-1 flex flex-col h-full relative animated-bg">
+              {renderHostBadge()}
               
               {/* Add streak counter */}
               {showStreak && (
@@ -607,34 +631,34 @@ export default function KaraokeRoom() {
                   )}
                   
                   <div className="space-y-2">
-                {nextLyrics.map((lyric, index) => (
-                  <div 
-                    key={index} 
+                    {nextLyrics.map((lyric, index) => (
+                      <div 
+                        key={index} 
                         className="lyrics-line text-2xl text-white/70"
-                  >
-                    {lyric}
+                      >
+                        {lyric}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
-            </div>
-          </div>
-          
+              
               <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
                 <div className="flex flex-col space-y-2">
-              <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2">
                     <span className="text-white text-sm min-w-[40px]">{formatTime(currentTime)}</span>
-                <div className="flex-1 h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-100"
-                    style={{ width: `${(currentTime / (room.current_song?.duration || 1)) * 100}%` }}
-                  />
-                </div>
+                    <div className="flex-1 h-2 bg-white/20 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary transition-all duration-100"
+                        style={{ width: `${(currentTime / (room.current_song?.duration || 1)) * 100}%` }}
+                      />
+                    </div>
                     <span className="text-white text-sm min-w-[40px] text-right">
-                  {formatTime(room.current_song?.duration || 0)}
-                </span>
-              </div>
-            
-              {user?.id === room.host_id ? (
+                      {formatTime(room.current_song?.duration || 0)}
+                    </span>
+                  </div>
+                
+                  {user?.id === room.host_id ? (
                     <div className="flex items-center justify-center space-x-4">
                       <TooltipProvider>
                         <Tooltip>
@@ -688,7 +712,7 @@ export default function KaraokeRoom() {
                       <Badge variant="secondary" className="text-sm flex items-center space-x-1">
                         <Music className="h-4 w-4" />
                         <span>{room.current_song?.is_playing ? 'Playing' : 'Paused'}</span>
-                  </Badge>
+                      </Badge>
                       <Button
                         variant="outline"
                         size="sm"
@@ -698,31 +722,31 @@ export default function KaraokeRoom() {
                         <Mic className="h-4 w-4" />
                         <span>Request to Sing</span>
                       </Button>
+                    </div>
+                  )}
+                </div>
               </div>
-              )}
             </div>
-          </div>
-        </div>
-        
-        <div className={cn(
-          "border-l bg-card transition-all duration-300 ease-in-out",
-          isMobile ? "fixed inset-y-0 right-0 z-50 transform" : "relative",
-          isSidebarOpen ? "translate-x-0" : "translate-x-full",
-          isMobile ? "w-[85vw] md:w-[320px]" : "w-[280px] md:w-80"
-        )}>
-          {!isMobile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute -left-10 top-1/2 -translate-y-1/2 bg-card border border-l-0 rounded-r-lg hover:bg-accent"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            >
-              <ChevronRight className={cn(
-                "h-4 w-4 transition-transform duration-300",
-                isSidebarOpen ? "rotate-180" : ""
-              )} />
-            </Button>
-          )}
+            
+            <div className={cn(
+              "border-l bg-card transition-all duration-300 ease-in-out",
+              isMobile ? "fixed inset-y-0 right-0 z-50 transform" : "relative",
+              isSidebarOpen ? "translate-x-0" : "translate-x-full",
+              isMobile ? "w-[85vw] md:w-[320px]" : "w-[280px] md:w-80"
+            )}>
+              {!isMobile && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute -left-10 top-1/2 -translate-y-1/2 bg-card border border-l-0 rounded-r-lg hover:bg-accent"
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                >
+                  <ChevronRight className={cn(
+                    "h-4 w-4 transition-transform duration-300",
+                    isSidebarOpen ? "rotate-180" : ""
+                  )} />
+                </Button>
+              )}
 
               <div className="p-4 border-b flex items-center justify-between">
                 <div className="flex space-x-2">
@@ -750,13 +774,13 @@ export default function KaraokeRoom() {
                     </Button>
                   )}
                 </div>
-            {isMobile && (
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsSidebarOpen(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-          
+                {isMobile && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsSidebarOpen(false)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
               <ScrollArea className="h-[calc(100vh-8rem)]">
                 <Tabs defaultValue="chat" className="w-full">
                   <TabsList className="w-full justify-start p-2">
@@ -808,66 +832,71 @@ export default function KaraokeRoom() {
                   </TabsContent>
                   
                   <TabsContent value="participants" className="h-[calc(100vh-8rem)]">
-                <div className="p-4 space-y-4">
-                {room.participants?.map((participant: any) => (
-                  <div key={participant.user.id} className="flex items-center space-x-3">
-                    <Avatar>
-                      <AvatarImage src={participant.user.avatar_url} alt={participant.user.username} />
-                      <AvatarFallback>{participant.user.username.slice(0, 2)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                      <p className="font-medium">{participant.user.username}</p>
-                      {participant.user.id === room.host_id && (
-                        <Badge variant="secondary" className="text-xs">Host</Badge>
+                    <div className="p-4 space-y-4">
+                      {room.participants?.map((participant: any) => (
+                        <div key={participant.user.id} className="flex items-center space-x-3">
+                          <Avatar>
+                            <AvatarImage src={participant.user.avatar_url} alt={participant.user.username} />
+                            <AvatarFallback>{participant.user.username.slice(0, 2)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{participant.user.username}</p>
+                            {participant.user.id === room.host_id && (
+                              <Badge variant="secondary" className="text-xs">Host</Badge>
                             )}
-                      </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
                   </TabsContent>
                   
                   <TabsContent value="permissions" className="h-[calc(100vh-8rem)]">
                     {user?.id === room.host_id && (
                       <div className="p-4 space-y-4">
                         {permissionRequests.length > 0 ? (
-                          permissionRequests.map((request: PermissionRequest) => (
-                            <div key={request.userId} className="flex items-center justify-between p-3 border rounded-lg">
+                          permissionRequests.map((request) => (
+                            <div key={request.user.id} className="flex items-center justify-between p-3 border rounded-lg">
                               <div className="flex items-center space-x-3">
                                 <Avatar className="h-6 w-6">
-                                  <AvatarImage src={request.avatar_url || undefined} alt={request.username} />
-                                  <AvatarFallback>{request.username.slice(0, 2)}</AvatarFallback>
-                        </Avatar>
-                                <span className="text-sm">{request.username}</span>
-                          </div>
+                                  <AvatarImage src={request.user.image || undefined} alt={request.user.name || ''} />
+                                  <AvatarFallback>{request.user.name?.slice(0, 2) || 'U'}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <span className="text-sm font-medium">{request.user.name || 'Anonymous'}</span>
+                                  <p className="text-xs text-muted-foreground">
+                                    Requesting permission to {request.permissions.includes(OwnCapability.SEND_AUDIO) ? 'speak' : 'participate'}
+                                  </p>
+                                </div>
+                              </div>
                               <div className="flex space-x-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => grantPermission(request.userId, request.permissions)}
+                                  onClick={() => grantPermission(request.user.id, request.permissions)}
                                 >
                                   Accept
                                 </Button>
                                 <Button
                                   variant="destructive"
                                   size="sm"
-                                  onClick={() => revokePermission(request.userId, request.permissions)}
+                                  onClick={() => revokePermission(request.user.id, request.permissions)}
                                 >
                                   Reject
                                 </Button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
+                              </div>
+                            </div>
+                          ))
+                        ) : (
                           <p className="text-center text-muted-foreground">No pending requests</p>
                         )}
                       </div>
                     )}
                   </TabsContent>
                 </Tabs>
-          </ScrollArea>
-        </div>
+              </ScrollArea>
+            </div>
           </div>
-      </div>
+        </div>
       </StreamCall>
     </StreamVideo>
   )

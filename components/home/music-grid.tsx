@@ -320,8 +320,8 @@ export function MusicGrid({ limit = 8, filter }: MusicGridProps) {
   
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">
-        {limitedTracks.map(track => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">
+      {limitedTracks.map(track => (
           <MusicCard 
             key={track.id} 
             track={track} 
@@ -360,8 +360,8 @@ export function MusicGrid({ limit = 8, filter }: MusicGridProps) {
                       <span className="text-muted-foreground mx-2">•</span>
                       <span className="text-muted-foreground">{currentTrack.artist}</span>
                     </div>
-                  </div>
                 </div>
+              </div>
 
                 {/* Controls */}
                 <div className="flex items-center space-x-2 md:space-x-4">
@@ -384,9 +384,9 @@ export function MusicGrid({ limit = 8, filter }: MusicGridProps) {
                     )}
                   </Button>
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
                     className={cn(
                       "h-8 w-8 md:h-10 md:w-10",
                       isMobile && "h-7 w-7"
@@ -410,13 +410,13 @@ export function MusicGrid({ limit = 8, filter }: MusicGridProps) {
                 <span className="text-xs text-muted-foreground">
                   {formatTime(currentTime)}
                 </span>
-                <Slider
-                  value={[currentTime]}
-                  max={duration}
-                  step={1}
-                  onValueChange={handleSeek}
+                  <Slider
+                    value={[currentTime]}
+                    max={duration}
+                    step={1}
+                    onValueChange={handleSeek}
                   className="flex-1"
-                />
+                  />
                 <span className="text-xs text-muted-foreground">
                   {formatTime(duration)}
                 </span>

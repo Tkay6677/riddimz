@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import { StreamVideoClient, Call, OwnCapability, EventTypes, SfuEvents } from '@stream-io/video-react-sdk';
-
-interface PermissionRequest {
-  userId: string;
-  username: string;
-  avatar_url?: string | null;
-  permissions: string[];
-}
+import { 
+  StreamVideoClient, 
+  Call, 
+  OwnCapability, 
+  PermissionRequestEvent,
+} from '@stream-io/video-react-sdk';
 
 interface UseWebRTCReturn {
   startStreaming: () => Promise<void>;
@@ -17,7 +15,7 @@ interface UseWebRTCReturn {
   videoClient: StreamVideoClient | null;
   call: Call | null;
   requestSingPermission: () => Promise<void>;
-  permissionRequests: PermissionRequest[];
+  permissionRequests: PermissionRequestEvent[];
   grantPermission: (userId: string, permissions: string[]) => Promise<void>;
   revokePermission: (userId: string, permissions: string[]) => Promise<void>;
   hasUserInteracted: boolean;
@@ -29,7 +27,7 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
   const [call, setCall] = useState<Call | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [permissionRequests, setPermissionRequests] = useState<PermissionRequest[]>([]);
+  const [permissionRequests, setPermissionRequests] = useState<PermissionRequestEvent[]>([]);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   // Initialize Stream Video Client
@@ -84,8 +82,14 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
         
         // Join the call with proper cleanup
         try {
-          await callInstance.join({ create: isHost });
+          // Join the call with specific settings
+          await callInstance.join({ 
+            create: isHost,
+          });
           console.log('Successfully joined call:', callInstance.state);
+
+          // Configure audio/video settings after joining
+          await callInstance.camera.disable(); // Ensure video is off since this is audio-only
 
           // Grant host permissions
           if (isHost) {
@@ -93,6 +97,27 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
               'send-audio',
               'send-video'
             ]);
+            console.log('Host permissions granted');
+            
+            // Host should enable microphone immediately
+            await callInstance.microphone.enable();
+            console.log('Host microphone enabled on join');
+          } else {
+            // For participants, ensure they start with no permissions
+            await callInstance.revokePermissions(userId, ['send-audio', 'send-video']);
+            console.log('Participant permissions revoked');
+            
+            // Ensure participant can receive audio
+            const hostParticipant = callInstance.state.participants.find(p => 
+              p.userId === callInstance.state.createdBy?.id
+            );
+            
+            if (hostParticipant) {
+              console.log('Host participant found on join:', {
+                isSpeaking: hostParticipant.isSpeaking,
+                publishedTracks: hostParticipant.publishedTracks
+              });
+            }
           }
 
           setVideoClient(client);
@@ -139,16 +164,11 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
   useEffect(() => {
     if (!call || !isHost) return;
 
-    const handlePermissionRequest = (event: any) => {
-      const { user, permissions } = event;
+    const handlePermissionRequest = (event: PermissionRequestEvent) => {
+      console.log('Permission request received:', event);
       setPermissionRequests((prev) => [
-        ...prev.filter((req) => req.userId !== user.id),
-        {
-          userId: user.id,
-          username: user.name || 'Anonymous',
-          avatar_url: user.image || null,
-          permissions,
-        },
+        ...prev.filter((req) => req.user.id !== event.user.id),
+        event
       ]);
     };
 
@@ -170,12 +190,37 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
         console.log('Host streaming status changed:', custom.isStreaming);
         setIsStreaming(custom.isStreaming);
       }
+      
       // Log participants and their audio states
       console.log('Current participants:', call.state.participants.map(p => ({
         id: p.userId,
         isSpeaking: p.isSpeaking,
-        publishedTracks: p.publishedTracks
+        publishedTracks: p.publishedTracks,
+        audioLevel: p.audioLevel,
+        hasAudio: p.publishedTracks.length > 0,
+        hasVideo: p.publishedTracks.length > 0
       })));
+
+      // Handle audio subscription for participants
+      if (!isHost) {
+        const hostParticipant = call.state.participants.find(p => 
+          p.userId === call.state.createdBy?.id
+        );
+        
+        if (hostParticipant) {
+          console.log('Host participant audio status:', {
+            isSpeaking: hostParticipant.isSpeaking,
+            publishedTracks: hostParticipant.publishedTracks,
+            audioLevel: hostParticipant.audioLevel,
+            hasAudio: hostParticipant.publishedTracks.length > 0
+          });
+
+          // Test audio feedback
+          if (hostParticipant.isSpeaking) {
+            console.log('🎤 Host is speaking! Audio level:', hostParticipant.audioLevel);
+          }
+        }
+      }
     };
 
     call.on('call.updated', handleCallUpdated);
@@ -185,7 +230,9 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
       participants: call.state.participants.map(p => ({
         id: p.userId,
         isSpeaking: p.isSpeaking,
-        publishedTracks: p.publishedTracks
+        publishedTracks: p.publishedTracks,
+        audioLevel: p.audioLevel,
+        hasAudio: p.publishedTracks.length > 0
       })),
       capabilities: call.state.ownCapabilities,
       isStreaming: isStreaming
@@ -194,7 +241,7 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
     return () => {
       call.off('call.updated', handleCallUpdated);
     };
-  }, [call, isStreaming]);
+  }, [call, isStreaming, isHost]);
 
   const startStreaming = async () => {
     if (!call) {
@@ -206,40 +253,120 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
       if (isHost) {
         console.log('Host starting stream...');
         
-        // Enable the call microphone
+        // Host should enable microphone to publish audio
         await call.microphone.enable();
         console.log('Host microphone enabled');
         
-        // Update host status
+        // Test microphone access and ensure it's published to the call
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log('🎤 Microphone access granted:', stream.getAudioTracks()[0].label);
+        
+        // Create audio context for feedback
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        source.connect(analyser);
+        
+        // Log audio levels periodically
+        const checkAudioLevel = () => {
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+          console.log('🎤 Current audio level:', average);
+        };
+        
+        const audioInterval = setInterval(checkAudioLevel, 1000);
+        
+        // Ensure audio track is being published
+        await call.camera.disable(); // Ensure video is off since this is audio-only
+        
+        // Force re-enable microphone to ensure audio is published
+        await call.microphone.disable();
+        await call.microphone.enable();
+        
+        // Update call custom data to indicate streaming status
         await call.update({
           custom: {
             isStreaming: true
           }
         });
-        console.log('Host status updated to streaming');
         
+        // Verify audio is being published
+        const localParticipant = call.state.localParticipant;
+        console.log('Host audio status:', {
+          isSpeaking: localParticipant?.isSpeaking,
+          publishedTracks: localParticipant?.publishedTracks,
+          audioLevel: localParticipant?.audioLevel,
+          hasAudio: Boolean(localParticipant?.publishedTracks?.length)
+        });
+        
+        // Ensure audio is being published
+        if (localParticipant?.publishedTracks?.length === 0) {
+          console.log('Host audio track not published, retrying...');
+          await call.microphone.disable();
+          await call.microphone.enable();
+        }
+        
+        console.log('Host is now publishing audio');
         setIsStreaming(true);
         setError(null);
+
+        // Store cleanup function in a ref or state if needed
+        const cleanup = () => {
+          clearInterval(audioInterval);
+          audioContext.close();
+          stream.getTracks().forEach(track => track.stop());
+        };
       } else {
-        console.log('Participant checking permissions...');
+        console.log('Participant joining stream...');
+        
+        // For participants, check if they have permission to speak
         const hasAudioPermission = call.state.ownCapabilities.includes(OwnCapability.SEND_AUDIO);
-        console.log('Participant audio permission:', hasAudioPermission);
+        console.log('Participant audio permission status:', hasAudioPermission);
         
         if (hasAudioPermission) {
-          console.log('Participant starting stream...');
-          
-          // Enable the call microphone
+          // If they have permission, enable their microphone
           await call.microphone.enable();
-          console.log('Participant microphone enabled');
-          
+          console.log('Participant microphone enabled - can now speak');
           setIsStreaming(true);
-          setError(null);
         } else {
-          // For participants without permission, just ensure they can receive audio
-          console.log('Participant can only receive audio');
-          setIsStreaming(false);
-          setError(null);
+          // If they don't have permission, make sure they can receive audio
+          console.log('Participant is in receive-only mode');
+          
+          // Forcibly ensure microphone is disabled
+          await call.microphone.disable();
+          
+          // Check host's audio status
+          const hostParticipant = call.state.participants.find(p => 
+            p.userId === call.state.createdBy?.id
+          );
+          
+          if (hostParticipant) {
+            console.log('Host participant status:', {
+              isSpeaking: hostParticipant.isSpeaking,
+              publishedTracks: hostParticipant.publishedTracks,
+              audioLevel: hostParticipant.audioLevel,
+              hasAudio: hostParticipant.publishedTracks.length > 0
+            });
+            
+            // Ensure we're subscribed to the host's audio
+            if (hostParticipant.publishedTracks && hostParticipant.publishedTracks.length > 0) {
+              console.log('Host is publishing audio, ensuring subscription...');
+              
+              // Force re-join the call to ensure proper subscription
+              await call.leave();
+              await call.join();
+              
+              console.log('Re-joined call to ensure audio subscription');
+      setIsStreaming(true);
+            } else {
+              console.log('Host is not publishing audio yet');
+              setIsStreaming(false);
+            }
+          }
         }
+        
+        setError(null);
       }
     } catch (err: any) {
       console.error('Streaming error details:', err);
@@ -319,7 +446,7 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
 
     try {
       await call.grantPermissions(userId, permissions);
-      setPermissionRequests((prev) => prev.filter((req) => req.userId !== userId));
+      setPermissionRequests((prev) => prev.filter((req) => req.user.id !== userId));
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Failed to grant permission');
@@ -332,7 +459,7 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
 
     try {
       await call.revokePermissions(userId, permissions);
-      setPermissionRequests((prev) => prev.filter((req) => req.userId !== userId));
+      setPermissionRequests((prev) => prev.filter((req) => req.user.id !== userId));
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Failed to revoke permission');
