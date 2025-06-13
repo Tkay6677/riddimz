@@ -131,6 +131,14 @@ export function useKaraokeRoom() {
       setCurrentLyric(lyric);
     });
 
+    // Sync play/pause from host across participants
+    socketRef.current.on('play', () => {
+      audio?.play();
+    });
+    socketRef.current.on('pause', () => {
+      audio?.pause();
+    });
+
     return () => {
       socketRef.current?.disconnect();
     };
@@ -486,10 +494,13 @@ export function useKaraokeRoom() {
     if (!audio) return;
     if (audio.paused) {
       audio.play();
-      socketRef.current?.emit('sync-time', room?.id, audio.currentTime);
+      socketRef.current?.emit('play', room?.id);
     } else {
       audio.pause();
+      socketRef.current?.emit('pause', room?.id);
     }
+    // Always sync time after action
+    socketRef.current?.emit('sync-time', room?.id, audio.currentTime);
   };
 
   const fetchRoom = async (roomId: string) => {

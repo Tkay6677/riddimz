@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/use-toast'
+import { Toaster } from '@/components/ui/toaster'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { useKaraokeRoom } from '@/hooks/useKaraokeRoom'
@@ -80,7 +81,9 @@ export default function KaraokeRoom() {
     revokePermission,
     hasUserInteracted,
     setHasUserInteracted,
-  } = useWebRTC(roomId, user?.id || '', user?.id === room?.host_id)
+    isSongPlaying,
+    toggleSong,
+  } = useWebRTC(roomId, user?.id || '', user?.id === room?.host_id, room?.song_url ?? undefined)
   const chatRef = useRef<HTMLDivElement>(null)
   
   const [chatMessage, setChatMessage] = useState('')
@@ -104,6 +107,17 @@ export default function KaraokeRoom() {
   const [showReactions, setShowReactions] = useState(false)
   const [streakCount, setStreakCount] = useState(0)
   const [showStreak, setShowStreak] = useState(false)
+  
+  // Reaction handling
+  const handleReaction = (type: string) => {
+    // update local count
+    setReactions(prev => ({
+      ...prev,
+      [type]: (prev[type] || 0) + 1,
+    }));
+    // broadcast to room
+    socket?.emit('reaction', roomId, type);
+  };
   
   // Check for mobile viewport
   useEffect(() => {
@@ -186,17 +200,45 @@ export default function KaraokeRoom() {
         }
         return [...prev, message];
       });
+      // Show toast for new messages
+      if (message.user.id !== user.id) {
+        toast({
+          title: `New message from ${message.user.username}`,
+          description: message.content,
+        });
+      }
+    });
+
+
+        // Listen for reaction events
+    chatSocket.on('reaction', (rId: string, type: string) => {
+      if (rId === roomId) {
+        setReactions(prev => ({
+          ...prev,
+          [type]: (prev[type] || 0) + 1,
+        }));
+      }
+    });
+
+        // Listen for user joins
+    chatSocket.on('user-joined', (joinedUserId: string, isHost: boolean) => {
+      toast({
+        title: 'User Joined',
+        description: `${joinedUserId} ${isHost ? '(Host)' : ''} joined the room`,
+      });
     });
 
     setSocket(chatSocket);
 
     return () => {
       if (chatSocket) {
-        chatSocket.off('chat-message');
+                chatSocket.off('chat-message');
+        chatSocket.off('reaction');
         chatSocket.off('connect');
         chatSocket.off('connect_error');
         chatSocket.off('disconnect');
         chatSocket.off('error');
+          chatSocket.off('user-joined');
         chatSocket.disconnect();
       }
     };
@@ -367,18 +409,23 @@ export default function KaraokeRoom() {
             )}
           </Button>
         )}
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-          onClick={togglePlayback}
-        >
-          {room.current_song?.is_playing ? (
-            <Pause className="h-6 w-6 text-white" />
-          ) : (
-            <Play className="h-6 w-6 text-white" />
-          )}
-        </Button>
+        {user?.id === room.host_id && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
+            onClick={() => {
+              toggleSong();
+              togglePlayback();
+            }}
+          >
+            {isSongPlaying ? (
+              <Pause className="h-6 w-6 text-white" />
+            ) : (
+              <Play className="h-6 w-6 text-white" />
+            )}
+          </Button>
+        )}
         {user?.id === room.host_id && (
           <Button
             variant="destructive"
@@ -411,13 +458,7 @@ export default function KaraokeRoom() {
     }
   };
 
-  // Add reaction handler
-  const handleReaction = (type: string) => {
-    setReactions(prev => ({
-      ...prev,
-      [type]: (prev[type] || 0) + 1
-    }));
-  };
+
 
   // Add streak counter
   useEffect(() => {
@@ -481,6 +522,7 @@ export default function KaraokeRoom() {
   
   return (
     <StreamVideo client={videoClient}>
+      <Toaster />
       <StreamCall call={call}>
         <div className="hidden">
           <SpeakerLayout />
@@ -692,9 +734,12 @@ export default function KaraokeRoom() {
                               variant="ghost" 
                               size="icon" 
                               className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-                              onClick={togglePlayback}
+                              onClick={() => {
+                                toggleSong();
+                                togglePlayback();
+                              }}
                             >
-                              {room.current_song?.is_playing ? (
+                              {isSongPlaying ? (
                                 <Pause className="h-6 w-6 text-white" />
                               ) : (
                                 <Play className="h-6 w-6 text-white" />
@@ -702,7 +747,7 @@ export default function KaraokeRoom() {
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>{room.current_song?.is_playing ? 'Pause' : 'Play'}</p>
+                            <p>{isSongPlaying ? 'Pause' : 'Play'}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -728,7 +773,19 @@ export default function KaraokeRoom() {
               </div>
             </div>
             
-            <div className={cn(
+            {isMobile && !isSidebarOpen && (
+  <>
+    <Button
+      variant="ghost"
+      size="icon"
+      className="fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 z-50"
+      onClick={() => setIsSidebarOpen(true)}
+    >
+      <MessageSquare className="h-6 w-6 text-white" />
+    </Button>
+  </>
+)}
+<div className={cn(
               "border-l bg-card transition-all duration-300 ease-in-out",
               isMobile ? "fixed inset-y-0 right-0 z-50 transform" : "relative",
               isSidebarOpen ? "translate-x-0" : "translate-x-full",

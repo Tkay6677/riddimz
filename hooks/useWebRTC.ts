@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   StreamVideoClient, 
   Call, 
@@ -12,6 +12,8 @@ interface UseWebRTCReturn {
   isStreaming: boolean;
   error: string | null;
   toggleMic: () => Promise<void>;
+  isSongPlaying: boolean;
+  toggleSong: () => Promise<void>;
   videoClient: StreamVideoClient | null;
   call: Call | null;
   requestSingPermission: () => Promise<void>;
@@ -22,13 +24,16 @@ interface UseWebRTCReturn {
   setHasUserInteracted: (value: boolean) => void;
 }
 
-export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseWebRTCReturn {
+export function useWebRTC(roomId: string, userId: string, isHost: boolean, songUrl?: string): UseWebRTCReturn {
+  // Note: signature updated to include optional songUrl.
   const [videoClient, setVideoClient] = useState<StreamVideoClient | null>(null);
   const [call, setCall] = useState<Call | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [permissionRequests, setPermissionRequests] = useState<PermissionRequestEvent[]>([]);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [isSongPlaying, setIsSongPlaying] = useState(false);
+  const karaokeAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Initialize Stream Video Client
   useEffect(() => {
@@ -99,7 +104,7 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
             ]);
             console.log('Host permissions granted');
             
-            // Host should enable microphone immediately
+            // Host should enable microphone immediately with default constraints
             await callInstance.microphone.enable();
             console.log('Host microphone enabled on join');
           } else {
@@ -246,135 +251,25 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
   const startStreaming = async () => {
     if (!call) {
       setError('Call not initialized');
-        return;
-      }
+      return;
+    }
 
     try {
       if (isHost) {
-        console.log('Host starting stream...');
-        
-        // Host should enable microphone to publish audio
+        // Host: publish microphone only
         await call.microphone.enable();
-        console.log('Host microphone enabled');
-        
-        // Test microphone access and ensure it's published to the call
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('🎤 Microphone access granted:', stream.getAudioTracks()[0].label);
-        
-        // Create audio context for feedback
-        const audioContext = new AudioContext();
-        const source = audioContext.createMediaStreamSource(stream);
-        const analyser = audioContext.createAnalyser();
-        source.connect(analyser);
-        
-        // Log audio levels periodically
-        const checkAudioLevel = () => {
-          const dataArray = new Uint8Array(analyser.frequencyBinCount);
-          analyser.getByteFrequencyData(dataArray);
-          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-          console.log('🎤 Current audio level:', average);
-        };
-        
-        const audioInterval = setInterval(checkAudioLevel, 1000);
-        
-        // Ensure audio track is being published
-        await call.camera.disable(); // Ensure video is off since this is audio-only
-        
-        // Force re-enable microphone to ensure audio is published
-        await call.microphone.disable();
-        await call.microphone.enable();
-        
-        // Update call custom data to indicate streaming status
-        await call.update({
-          custom: {
-            isStreaming: true
-          }
-        });
-        
-        // Verify audio is being published
-        const localParticipant = call.state.localParticipant;
-        console.log('Host audio status:', {
-          isSpeaking: localParticipant?.isSpeaking,
-          publishedTracks: localParticipant?.publishedTracks,
-          audioLevel: localParticipant?.audioLevel,
-          hasAudio: Boolean(localParticipant?.publishedTracks?.length)
-        });
-        
-        // Ensure audio is being published
-        if (localParticipant?.publishedTracks?.length === 0) {
-          console.log('Host audio track not published, retrying...');
-          await call.microphone.disable();
-          await call.microphone.enable();
-        }
-        
-        console.log('Host is now publishing audio');
         setIsStreaming(true);
         setError(null);
-
-        // Store cleanup function in a ref or state if needed
-        const cleanup = () => {
-          clearInterval(audioInterval);
-          audioContext.close();
-          stream.getTracks().forEach(track => track.stop());
-        };
       } else {
-        console.log('Participant joining stream...');
-        
-        // For participants, check if they have permission to speak
-        const hasAudioPermission = call.state.ownCapabilities.includes(OwnCapability.SEND_AUDIO);
-        console.log('Participant audio permission status:', hasAudioPermission);
-        
-        if (hasAudioPermission) {
-          // If they have permission, enable their microphone
-          await call.microphone.enable();
-          console.log('Participant microphone enabled - can now speak');
-          setIsStreaming(true);
-        } else {
-          // If they don't have permission, make sure they can receive audio
-          console.log('Participant is in receive-only mode');
-          
-          // Forcibly ensure microphone is disabled
-          await call.microphone.disable();
-          
-          // Check host's audio status
-          const hostParticipant = call.state.participants.find(p => 
-            p.userId === call.state.createdBy?.id
-          );
-          
-          if (hostParticipant) {
-            console.log('Host participant status:', {
-              isSpeaking: hostParticipant.isSpeaking,
-              publishedTracks: hostParticipant.publishedTracks,
-              audioLevel: hostParticipant.audioLevel,
-              hasAudio: hostParticipant.publishedTracks.length > 0
-            });
-            
-            // Ensure we're subscribed to the host's audio
-            if (hostParticipant.publishedTracks && hostParticipant.publishedTracks.length > 0) {
-              console.log('Host is publishing audio, ensuring subscription...');
-              
-              // Force re-join the call to ensure proper subscription
-              await call.leave();
-              await call.join();
-              
-              console.log('Re-joined call to ensure audio subscription');
-      setIsStreaming(true);
-            } else {
-              console.log('Host is not publishing audio yet');
-              setIsStreaming(false);
-            }
-          }
-        }
-        
+        console.log('Participant joining (listen-only)');
+        // Participants join in receive-only mode
+        await call.microphone.disable();
+        setIsStreaming(true);
         setError(null);
       }
     } catch (err: any) {
       console.error('Streaming error details:', err);
-      if (err.name === 'NotAllowedError') {
-        setError('Please allow microphone access to start streaming');
-      } else {
-        setError(err.message || 'Failed to start streaming');
-      }
+      setError(err.message || 'Failed to start streaming');
     }
   };
 
@@ -467,14 +362,30 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean): UseW
     }
   };
 
+  const toggleSong = async () => {
+    const audioEl = karaokeAudioRef.current;
+    if (!audioEl) return;
+    try {
+      if (audioEl.paused) {
+        await audioEl.play();
+      } else {
+        audioEl.pause();
+      }
+    } catch (err) {
+      console.error('Error toggling karaoke audio:', err);
+    }
+  };
+
   return {
-    videoClient,
-    call,
     startStreaming,
     stopStreaming,
     isStreaming,
     error,
     toggleMic,
+    isSongPlaying,
+    toggleSong,
+    videoClient,
+    call,
     requestSingPermission,
     permissionRequests,
     grantPermission,
