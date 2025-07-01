@@ -129,9 +129,8 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean, songU
             ]);
             console.log('[useWebRTC] Host permissions granted for', userId);
             console.log('[useWebRTC] Own capabilities after grant:', callInstance.state.ownCapabilities);
-            // Host should enable microphone immediately with default constraints
-            await callInstance.microphone.enable();
-            console.log('Host microphone enabled on join');
+            // Don't enable microphone immediately - wait for user interaction
+            console.log('[useWebRTC] Host joined successfully - microphone will be enabled on user interaction');
           } else {
             // For participants, ensure they start with no permissions
             await callInstance.revokePermissions(userId, ['send-audio', 'send-video']);
@@ -464,6 +463,16 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean, songU
           audioContextState: audioContextRef.current?.state
         });
         
+        // Check if we have audio permissions
+        const hasAudioPermission = call.state.ownCapabilities.includes(OwnCapability.SEND_AUDIO);
+        console.log('[useWebRTC] Host audio permission:', hasAudioPermission);
+        
+        if (!hasAudioPermission) {
+          console.log('[useWebRTC] No audio permission, granting permissions first...');
+          await call.grantPermissions(userId, ['send-audio', 'send-video']);
+          console.log('[useWebRTC] Permissions granted, retrying microphone enable...');
+        }
+        
         // Resume audio context if suspended
         if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
           await audioContextRef.current.resume();
@@ -486,6 +495,23 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean, songU
     } catch (err: any) {
       console.error('Streaming error details:', err);
       setError(err.message || 'Failed to start streaming');
+      
+      // If it's a permission error, try to grant permissions and retry
+      if (err.message.includes('not authorized to publish track') && isHost) {
+        console.log('[useWebRTC] Permission error detected, attempting to grant permissions...');
+        try {
+          await call.grantPermissions(userId, ['send-audio', 'send-video']);
+          console.log('[useWebRTC] Permissions granted, retrying...');
+          // Wait a moment for permissions to propagate
+          setTimeout(() => {
+            startStreaming().catch(retryErr => {
+              console.error('[useWebRTC] Retry failed:', retryErr);
+            });
+          }, 1000);
+        } catch (grantErr) {
+          console.error('[useWebRTC] Failed to grant permissions:', grantErr);
+        }
+      }
     }
   };
 
@@ -619,6 +645,14 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean, songU
       // Set up audio mixing on first user interaction
       console.log('[useWebRTC] User interacted, setting up audio mixing');
       setupAudioMixing();
+    }
+    
+    // Enable microphone for host on first interaction
+    if (value && isHost && call && !isStreaming) {
+      console.log('[useWebRTC] User interacted, enabling microphone for host');
+      startStreaming().catch(err => {
+        console.error('[useWebRTC] Error enabling microphone on user interaction:', err);
+      });
     }
   };
 

@@ -449,13 +449,13 @@ export default function KaraokeRoom() {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-                onClick={() => {
-                  toggleSong();
-                  togglePlayback();
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
+            onClick={() => {
+              toggleSong();
+              togglePlayback();
                   // Emit karaoke play/pause events for participants
                   if (socket && roomId) {
                     if (isSongPlaying) {
@@ -464,14 +464,14 @@ export default function KaraokeRoom() {
                       socket.emit('karaoke-play', roomId);
                     }
                   }
-                }}
-              >
-                {isSongPlaying ? (
-                  <Pause className="h-6 w-6 text-white" />
-                ) : (
-                  <Play className="h-6 w-6 text-white" />
-                )}
-              </Button>
+            }}
+          >
+            {isSongPlaying ? (
+              <Pause className="h-6 w-6 text-white" />
+            ) : (
+              <Play className="h-6 w-6 text-white" />
+            )}
+          </Button>
             </TooltipTrigger>
             <TooltipContent>
               <p>{isSongPlaying ? 'Pause' : 'Play'}</p>
@@ -483,17 +483,17 @@ export default function KaraokeRoom() {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button 
+          <Button
                 variant="ghost" 
                 size="icon" 
                 className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-                onClick={() => {
+            onClick={() => {
                   setShowDebugPanel(!showDebugPanel);
                   debugAudioInfo();
-                }}
-              >
+            }}
+          >
                 <Bug className="h-6 w-6 text-white" />
-              </Button>
+          </Button>
             </TooltipTrigger>
             <TooltipContent>
               <p>Debug Audio</p>
@@ -643,7 +643,7 @@ export default function KaraokeRoom() {
       </div>
     );
   };
-
+  
   if (isLoading && isInitialLoad) {
     return (
       <div className="flex items-center justify-center min-h-screen">
