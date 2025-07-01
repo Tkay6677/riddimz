@@ -1,13 +1,30 @@
+'use client';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FeaturedSection } from "@/components/home/featured-section";
 import { MusicGrid } from "@/components/home/music-grid";
 import { KaraokeRooms } from "@/components/home/karaoke-rooms";
 import Link from "next/link";
+import { Music } from "lucide-react";
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 export const dynamic = 'force-dynamic'
 //....
 export default function Home() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  // Redirect to login if not authenticated
+  if (!loading && !user) {
+    if (typeof window !== 'undefined') {
+      router.replace('/auth/login');
+    }
+    return null;
+  }
+
+  if (loading) return null;
+
   return (
     <div className="container px-4 py-6 max-w-7xl mx-auto">
       <FeaturedSection />
@@ -105,6 +122,20 @@ export default function Home() {
                   </Button>
                 </div>
                 <KaraokeRooms limit={3} filter="featured" />
+              </section>
+              <section>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold">Quick Karaoke</h3>
+                  <Button variant="link" asChild>
+                    <Link href="/karaoke/quick">Try Quick Karaoke</Link>
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                  <Link href="/karaoke/quick" className="group relative rounded-lg overflow-hidden border bg-card p-4 hover:shadow-lg transition-shadow flex items-center justify-center space-x-2">
+                    <Music className="h-6 w-6 text-primary" />
+                    <span className="font-semibold">Quick Karaoke</span>
+                  </Link>
+                </div>
               </section>
             </div>
           </TabsContent>

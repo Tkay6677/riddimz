@@ -75,6 +75,15 @@ interface Room {
   }>;
 }
 
+const SUPABASE_PUBLIC_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const KARAOKE_BUCKET = 'karaoke-songs';
+
+function getPublicSongUrl(songPath: string | null | undefined): string | null {
+  if (!songPath) return null;
+  if (songPath.startsWith('http')) return songPath;
+  return `${SUPABASE_PUBLIC_URL}/storage/v1/object/public/${KARAOKE_BUCKET}/${songPath}`;
+}
+
 export function useKaraokeRoom() {
   const { user } = useAuth();
   const { uploadFile, error: uploadError } = useUpload();
@@ -146,11 +155,13 @@ export function useKaraokeRoom() {
 
   // Initialize audio and lyrics
   useEffect(() => {
-    if (!room?.song_url || !room?.lyrics_url) return;
+    if (!room?.song_url) return;
 
-    // Initialize audio
+    const publicUrl = getPublicSongUrl(room.song_url);
+    if (!publicUrl) return;
+
     const audioElement = new Audio();
-    audioElement.src = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/karaoke-songs/${room.song_url}`;
+    audioElement.src = publicUrl;
     audioElement.addEventListener('timeupdate', () => {
       setCurrentTime(audioElement.currentTime);
       // Sync time with other participants
@@ -722,8 +733,11 @@ export function useKaraokeRoom() {
   const loadAudio = async () => {
     if (!room?.song_url) return;
     
+    const publicUrl = getPublicSongUrl(room.song_url);
+    if (!publicUrl) return;
+    
     const audio = new Audio();
-    audio.src = room.song_url;
+    audio.src = publicUrl;
     setAudio(audio);
     
     audio.addEventListener('timeupdate', () => {
@@ -738,6 +752,8 @@ export function useKaraokeRoom() {
     currentTime,
     currentLyric,
     nextLyrics,
+    audio,
+    publicSongUrl: getPublicSongUrl(room?.song_url),
     joinRoom,
     leaveRoom,
     getRoom,

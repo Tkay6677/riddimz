@@ -88,8 +88,6 @@ export default function Profile() {
   const [loading, setLoading] = useState(true)
   const [userProfile, setUserProfile] = useState({
     username: '',
-    fullName: '',
-    bio: '',
     avatar_url: '',
     email: '',
     created_at: '',
@@ -129,8 +127,6 @@ export default function Profile() {
       if (profile) {
         setUserProfile({
           username: profile.username || '',
-          fullName: profile.full_name || '',
-          bio: profile.bio || '',
           avatar_url: profile.avatar_url || '',
           email: profile.email || '',
           created_at: new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
@@ -262,8 +258,7 @@ export default function Profile() {
         .from('users')
         .update({
           username: userProfile.username,
-          full_name: userProfile.fullName,
-          bio: userProfile.bio,
+          avatar_url: userProfile.avatar_url,
           updated_at: new Date().toISOString()
         })
         .eq('id', user?.id)
@@ -274,7 +269,8 @@ export default function Profile() {
         title: "Profile updated successfully",
         duration: 3000
       })
-    setIsEditing(false)
+      setIsEditing(false)
+      await loadUserProfile();
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -315,7 +311,7 @@ export default function Profile() {
               
               <div className="text-center p-6 pt-2">
                 <h2 className="text-2xl font-bold">{userProfile.username}</h2>
-                <p className="text-muted-foreground">{userProfile.fullName}</p>
+                <p className="text-muted-foreground">{userProfile.username}</p>
                 
                 <div className="flex justify-center space-x-6 mt-4">
                   <div className="text-center">
@@ -367,8 +363,7 @@ export default function Profile() {
             <CardContent>
               {!isEditing ? (
                 <div>
-                  <p className="text-sm mb-4">{userProfile.bio}</p>
-                  
+                  <p className="text-sm mb-4">{userProfile.username}</p>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center text-muted-foreground">
                       <Calendar className="h-4 w-4 mr-2" />
@@ -390,22 +385,12 @@ export default function Profile() {
                       onChange={(e) => setUserProfile({...userProfile, username: e.target.value})}
                     />
                   </div>
-                  
                   <div>
-                    <Label htmlFor="fullName">Full Name</Label>
+                    <Label htmlFor="avatar_url">Avatar URL</Label>
                     <Input 
-                      id="fullName"
-                      value={userProfile.fullName}
-                      onChange={(e) => setUserProfile({...userProfile, fullName: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea 
-                      id="bio"
-                      value={userProfile.bio}
-                      onChange={(e) => setUserProfile({...userProfile, bio: e.target.value})}
+                      id="avatar_url"
+                      value={userProfile.avatar_url}
+                      onChange={(e) => setUserProfile({...userProfile, avatar_url: e.target.value})}
                     />
                   </div>
                 </div>

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { 
   ChevronLeft, ChevronRight, Mic, MicOff, Video, VideoOff, Users, Send, 
   Heart, Star, ThumbsUp, Hand, Sparkles, Music, Volume2, VolumeX,
-  MessageSquare, Settings, Crown, Trophy, Gift, PartyPopper, Play, Pause, X
+  MessageSquare, Settings, Crown, Trophy, Gift, PartyPopper, Play, Pause, X, Bug
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
@@ -65,7 +65,7 @@ export default function KaraokeRoom() {
   const router = useRouter()
   const { toast } = useToast()
   const roomId = params.roomId as string
-  const { room, loading: roomLoading, error: roomError, currentTime, currentLyric, nextLyrics, joinRoom, leaveRoom, togglePlayback } = useKaraokeRoom()
+  const { room, loading: roomLoading, error: roomError, currentTime, currentLyric, nextLyrics, joinRoom, leaveRoom, togglePlayback, audio } = useKaraokeRoom()
   const { user, loading: authLoading } = useAuth()
   const {
     startStreaming,
@@ -83,6 +83,15 @@ export default function KaraokeRoom() {
     setHasUserInteracted,
     isSongPlaying,
     toggleSong,
+    setKaraokeAudio,
+    setKaraokeVolume,
+    setMicVolume,
+    // Monitoring features
+    participantAudioLevels,
+    hostAudioLevel,
+    isHostAudioDetected,
+    participantConnectionStatus,
+    debugAudioInfo,
   } = useWebRTC(roomId, user?.id || '', user?.id === room?.host_id, room?.song_url ?? undefined)
   const chatRef = useRef<HTMLDivElement>(null)
   
@@ -107,6 +116,50 @@ export default function KaraokeRoom() {
   const [showReactions, setShowReactions] = useState(false)
   const [streakCount, setStreakCount] = useState(0)
   const [showStreak, setShowStreak] = useState(false)
+  const [showDebugPanel, setShowDebugPanel] = useState(false)
+  
+  // Add a ref for the karaoke audio element
+  const karaokeAudioDomRef = useRef<HTMLAudioElement | null>(null);
+
+  // Connect karaoke audio to WebRTC mixing when available
+  useEffect(() => {
+    if (audio && user?.id === room?.host_id) {
+      console.log('Connecting karaoke audio to WebRTC mixing');
+      setKaraokeAudio(audio);
+    }
+  }, [audio, user?.id, room?.host_id, setKaraokeAudio]);
+
+  // For participants: Play karaoke audio locally when host starts streaming
+  useEffect(() => {
+    if (!isHost && audio && isStreaming && room?.current_song?.is_playing) {
+      console.log('Participant: Playing karaoke audio locally');
+      audio.play().catch(err => {
+        console.error('Error playing karaoke audio for participant:', err);
+      });
+    }
+  }, [isHost, audio, isStreaming, room?.current_song?.is_playing]);
+
+  // Sync karaoke audio playback with host
+  useEffect(() => {
+    if (!isHost && audio && socket) {
+      socket.on('karaoke-play', () => {
+        console.log('Participant: Host started karaoke playback');
+        audio.play().catch(err => {
+          console.error('Error playing karaoke audio:', err);
+        });
+      });
+
+      socket.on('karaoke-pause', () => {
+        console.log('Participant: Host paused karaoke playback');
+        audio.pause();
+      });
+
+      return () => {
+        socket.off('karaoke-play');
+        socket.off('karaoke-pause');
+      };
+    }
+  }, [isHost, audio, socket]);
   
   // Reaction handling
   const handleReaction = (type: string) => {
@@ -389,56 +442,90 @@ export default function KaraokeRoom() {
   };
 
   const renderPlaybackControls = () => {
-    if (!room) return null;
+    if (user?.id !== room?.host_id) return null;
+
     return (
       <div className="flex items-center justify-center space-x-4">
-        {user?.id === room.host_id && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-            onClick={() => {
-              toggleMic();
-              setIsMicMuted(!isMicMuted);
-            }}
-          >
-            {isMicMuted ? (
-              <VolumeX className="h-6 w-6 text-white" />
-            ) : (
-              <Volume2 className="h-6 w-6 text-white" />
-            )}
-          </Button>
-        )}
-        {user?.id === room.host_id && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-            onClick={() => {
-              toggleSong();
-              togglePlayback();
-            }}
-          >
-            {isSongPlaying ? (
-              <Pause className="h-6 w-6 text-white" />
-            ) : (
-              <Play className="h-6 w-6 text-white" />
-            )}
-          </Button>
-        )}
-        {user?.id === room.host_id && (
-          <Button
-            variant="destructive"
-            size="sm"
-            className="h-10"
-            onClick={() => {
-              stopStreaming();
-              router.push('/');
-            }}
-          >
-            End Stream
-          </Button>
-        )}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
+                onClick={() => {
+                  toggleSong();
+                  togglePlayback();
+                  // Emit karaoke play/pause events for participants
+                  if (socket && roomId) {
+                    if (isSongPlaying) {
+                      socket.emit('karaoke-pause', roomId);
+                    } else {
+                      socket.emit('karaoke-play', roomId);
+                    }
+                  }
+                }}
+              >
+                {isSongPlaying ? (
+                  <Pause className="h-6 w-6 text-white" />
+                ) : (
+                  <Play className="h-6 w-6 text-white" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{isSongPlaying ? 'Pause' : 'Play'}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Debug Button */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
+                onClick={() => {
+                  setShowDebugPanel(!showDebugPanel);
+                  debugAudioInfo();
+                }}
+              >
+                <Bug className="h-6 w-6 text-white" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Debug Audio</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Volume Controls */}
+        <div className="flex items-center space-x-2">
+          <Mic className="h-4 w-4 text-white" />
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            defaultValue="0.8"
+            className="w-20"
+            onChange={(e) => setMicVolume(parseFloat(e.target.value))}
+          />
+        </div>
+        <div className="flex items-center space-x-2">
+          <Volume2 className="h-4 w-4 text-white" />
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            defaultValue="0.6"
+            className="w-20"
+            onChange={(e) => setKaraokeVolume(parseFloat(e.target.value))}
+          />
+        </div>
       </div>
     );
   };
@@ -469,6 +556,94 @@ export default function KaraokeRoom() {
     }
   }, [currentLyric]);
   
+  // Attach the audio element to the DOM and connect to mixing logic
+  useEffect(() => {
+    if (karaokeAudioDomRef.current) {
+      setKaraokeAudio(karaokeAudioDomRef.current);
+      console.log('[KaraokeRoom] Karaoke audio element attached:', karaokeAudioDomRef.current.src);
+    }
+  }, [setKaraokeAudio, room?.song_url]);
+
+  // Debug logs for lyrics
+  useEffect(() => {
+    console.log('[KaraokeRoom] currentLyric:', currentLyric);
+    console.log('[KaraokeRoom] nextLyrics:', nextLyrics);
+  }, [currentLyric, nextLyrics]);
+
+  // Log the karaoke song URL for debugging
+  useEffect(() => {
+    if (room?.song_url) {
+      console.log('[KaraokeRoom] Karaoke song URL:', room.song_url);
+    }
+  }, [room?.song_url]);
+  
+  // Debug Panel Component
+  const renderDebugPanel = () => {
+    if (!showDebugPanel) return null;
+
+    return (
+      <div className="absolute top-20 right-4 bg-black/90 text-white p-4 rounded-lg max-w-sm z-50">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold">Audio Debug</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDebugPanel(false)}
+            className="text-white hover:bg-white/10"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        <div className="space-y-2 text-sm">
+          <div>
+            <strong>Host Audio:</strong>
+            <div className="flex items-center space-x-2">
+              <div className="w-20 h-2 bg-gray-600 rounded">
+                <div 
+                  className="h-full bg-green-500 rounded transition-all duration-100"
+                  style={{ width: `${(hostAudioLevel / 1) * 100}%` }}
+                />
+              </div>
+              <span>{Math.round(hostAudioLevel * 100)}%</span>
+              {isHostAudioDetected && <span className="text-green-400">✓</span>}
+            </div>
+          </div>
+          
+          <div>
+            <strong>Participants:</strong>
+            {Object.entries(participantAudioLevels).map(([userId, level]) => (
+              <div key={userId} className="ml-2">
+                <span className="text-xs">{userId}: </span>
+                <div className="flex items-center space-x-2">
+                  <div className="w-16 h-1 bg-gray-600 rounded">
+                    <div 
+                      className="h-full bg-blue-500 rounded transition-all duration-100"
+                      style={{ width: `${(level / 1) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-xs">{Math.round(level * 100)}%</span>
+                  <span className={`text-xs ${participantConnectionStatus[userId] === 'connected' ? 'text-green-400' : 'text-red-400'}`}>
+                    {participantConnectionStatus[userId]}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div>
+            <strong>Status:</strong>
+            <div className="ml-2 space-y-1">
+              <div>Streaming: {isStreaming ? '✓' : '✗'}</div>
+              <div>Song Playing: {isSongPlaying ? '✓' : '✗'}</div>
+              <div>User Interacted: {hasUserInteracted ? '✓' : '✗'}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (isLoading && isInitialLoad) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -509,7 +684,17 @@ export default function KaraokeRoom() {
     )
   }
 
-  if (!room || !videoClient || !call) {
+  // Show loading screen until room data and video call are ready
+  if (roomLoading || !videoClient || !call) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <h1 className="text-2xl font-bold mb-4">Loading room...</h1>
+      </div>
+    );
+  }
+
+  // If loading has finished and no room was found, show not-found message
+  if (!room) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <h1 className="text-2xl font-bold mb-4">Room Not Found</h1>
@@ -517,13 +702,24 @@ export default function KaraokeRoom() {
           <Link href="/karaoke">Back to Rooms</Link>
         </Button>
       </div>
-    )
+    );
   }
   
   return (
     <StreamVideo client={videoClient}>
       <Toaster />
       <StreamCall call={call}>
+        {/* Ensure karaoke audio element is in the DOM, hidden */}
+        {room?.song_url && (
+          <audio
+            ref={karaokeAudioDomRef}
+            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/karaoke-songs/${room.song_url}`}
+            style={{ display: 'none' }}
+            preload="auto"
+            onLoadedData={() => console.log('[KaraokeRoom] Karaoke audio loaded')}
+            onError={e => console.error('[KaraokeRoom] Audio error', e)}
+          />
+        )}
         <div className="hidden">
           <SpeakerLayout />
         </div>
@@ -702,55 +898,7 @@ export default function KaraokeRoom() {
                 
                   {user?.id === room.host_id ? (
                     <div className="flex items-center justify-center space-x-4">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-                              onClick={() => {
-                                toggleMic();
-                                setIsMicMuted(!isMicMuted);
-                              }}
-                            >
-                              {isMicMuted ? (
-                                <VolumeX className="h-6 w-6 text-white" />
-                              ) : (
-                                <Volume2 className="h-6 w-6 text-white" />
-                              )}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{isMicMuted ? 'Unmute' : 'Mute'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-                              onClick={() => {
-                                toggleSong();
-                                togglePlayback();
-                              }}
-                            >
-                              {isSongPlaying ? (
-                                <Pause className="h-6 w-6 text-white" />
-                              ) : (
-                                <Play className="h-6 w-6 text-white" />
-                              )}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{isSongPlaying ? 'Pause' : 'Play'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      {renderPlaybackControls()}
                     </div>
                   ) : (
                     <div className="flex items-center justify-center space-x-4">
@@ -955,6 +1103,7 @@ export default function KaraokeRoom() {
           </div>
         </div>
       </StreamCall>
+      {renderDebugPanel()}
     </StreamVideo>
   )
 }

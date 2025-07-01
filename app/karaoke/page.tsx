@@ -113,19 +113,30 @@ export default function KaraokePage() {
   return (
     <div className="container max-w-7xl mx-auto py-8 space-y-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
         <div>
           <h1 className="text-3xl font-bold">Karaoke Rooms</h1>
           <p className="text-muted-foreground">Join a room or create your own</p>
         </div>
-        <Button 
-          size="lg" 
-          onClick={handleCreateRoom}
-          className="w-full md:w-auto"
-        >
-          <Plus className="mr-2 h-5 w-5" />
-          Create Room
-        </Button>
+        <div className="flex w-full md:w-auto gap-2">
+          <Button 
+            size="lg" 
+            onClick={handleCreateRoom}
+            className="w-full md:w-auto"
+          >
+            <Plus className="mr-2 h-5 w-5" />
+            Create Room
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => router.push('/karaoke/quick')}
+            className="w-full md:w-auto"
+          >
+            <Music className="mr-2 h-5 w-5" />
+            Quick Karaoke
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -172,6 +183,12 @@ export default function KaraokePage() {
         </div>
       ) : filteredRooms.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div key="quick" className="group relative rounded-lg border bg-card p-4 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/karaoke/quick')}>
+            <div className="flex items-center justify-center h-full">
+              <Music className="h-6 w-6 text-primary mr-2" />
+              <span className="font-semibold">Quick Karaoke</span>
+            </div>
+          </div>
           {filteredRooms.map((room) => (
             <div
               key={room.id}
@@ -233,15 +250,21 @@ export default function KaraokePage() {
         <div className="text-center py-12">
           <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">No rooms found</h3>
-          <p className="text-muted-foreground mb-4">
-            {searchQuery ? "Try adjusting your search" : "Be the first to create a room!"}
-          </p>
           <Button onClick={handleCreateRoom}>
             <Plus className="mr-2 h-4 w-4" />
             Create Room
+          </Button>
+          <Button 
+            size="lg"
+            variant="outline"
+            onClick={() => router.push('/karaoke/quick')}
+            className="w-full md:w-auto"
+          >
+            <Music className="mr-2 h-5 w-5" />
+            Quick Karaoke
           </Button>
         </div>
       )}
     </div>
   )
-} 
+}
