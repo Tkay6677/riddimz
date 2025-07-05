@@ -403,18 +403,6 @@ export default function Profile() {
             <CardContent className="p-4">
               <nav className="space-y-1">
                 <Button variant="ghost" className="w-full justify-start">
-                  <User className="h-4 w-4 mr-2" />
-                  Profile
-                </Button>
-                <Button variant="ghost" className="w-full justify-start">
-                  <Music className="h-4 w-4 mr-2" />
-                  My Music
-                </Button>
-                <Button variant="ghost" className="w-full justify-start">
-                  <Mic className="h-4 w-4 mr-2" />
-                  My Karaoke
-                </Button>
-                <Button variant="ghost" className="w-full justify-start">
                   <Award className="h-4 w-4 mr-2" />
                   My NFTs
                 </Button>

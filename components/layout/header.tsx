@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Search, Menu, X, Bell, User } from 'lucide-react'
+import { Search, Menu, X, Bell, User, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { 
@@ -16,11 +16,25 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { WalletConnect } from '@/components/wallet/wallet-connect'
+import { useAuth } from '@/hooks/useAuth'
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const pathname = usePathname()
+  const { signOut } = useAuth()
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await signOut()
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
 
   // Track scroll for header styling
   useEffect(() => {
@@ -87,7 +101,10 @@ const Header = () => {
                 <Link href="/settings" className="w-full">Settings</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Log out</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer" disabled={isLoggingOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                {isLoggingOut ? 'Signing out...' : 'Log out'}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -132,6 +149,14 @@ const Header = () => {
             >
               Library
             </Link>
+            <button 
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="px-3 py-2 rounded-md text-foreground hover:bg-secondary flex items-center disabled:opacity-50"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              {isLoggingOut ? 'Signing out...' : 'Log out'}
+            </button>
           </nav>
         </div>
       )}

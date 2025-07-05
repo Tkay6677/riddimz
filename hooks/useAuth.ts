@@ -86,6 +86,11 @@ export function useAuth() {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
+      // Show success message
+      console.log('Successfully signed out');
+      
+      // Redirect to login page
       router.push('/auth/login');
     } catch (error) {
       console.error('Error signing out:', error);

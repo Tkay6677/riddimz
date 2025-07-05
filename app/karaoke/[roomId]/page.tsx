@@ -194,6 +194,10 @@ export default function KaraokeRoom() {
         return
       }
       
+      // Automatic redirect to maintenance page
+      router.push('/karaoke/maintenance')
+      return
+      
       if (roomId && !room) {
         joinRoom(roomId).catch((err) => {
           console.error('Error joining room:', err)
