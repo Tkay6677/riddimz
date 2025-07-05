@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+// import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 
 import { supabase } from "@/lib/supabase";
@@ -716,7 +716,12 @@ export default function QuickKaraokeRoom() {
                     <span>{formatTime(time)}</span>
                     <span>{formatTime(duration)}</span>
                   </div>
-                  <Progress value={progressPercent} className="h-2 bg-white/10" />
+                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-300"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
                 </div>
 
                                 {/* Lyrics Display */}

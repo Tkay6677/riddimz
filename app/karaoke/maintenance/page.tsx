@@ -43,7 +43,7 @@ export default function MaintenancePage() {
           <p className="text-xl text-muted-foreground">
             Our sound engineers are tuning up the microphones and our developers are debugging the dance moves.
             <br />
-            <span className="text-lg">(Translation: We're fixing some bugs that were singing off-key) 🔧</span>
+            <span className="text-lg">(Translation: We&apos;re fixing some bugs that were singing off-key) 🔧</span>
           </p>
         </div>
 
@@ -58,7 +58,7 @@ export default function MaintenancePage() {
 
         <div className="space-y-4">
           <p className="text-lg text-muted-foreground">
-            While we're working our magic, here are some things you can do:
+            While we&apos;re working our magic, here are some things you can do:
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-lg mx-auto">
             <div className="p-4 bg-background/50 rounded-lg backdrop-blur-sm border border-orange-300/30">
@@ -83,7 +83,7 @@ export default function MaintenancePage() {
 
         <div className="space-y-4">
           <p className="text-lg text-muted-foreground">
-            Don't worry, we'll be back in harmony soon!
+            Don&apos;t worry, we&apos;ll be back in harmony soon!
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Button 
@@ -155,10 +155,10 @@ export default function MaintenancePage() {
             <br />
             P.S. Our developers are definitely not having a karaoke party while fixing this... 
             <br />
-            (They're having a very serious debugging session with background music) 🎤
+            (They&apos;re having a very serious debugging session with background music) 🎤
             <br />
             <br />
-            <span className="text-yellow-500">⚠️ Emergency Contact:</span> Try singing "Help!" by The Beatles 🔧
+            <span className="text-yellow-500">⚠️ Emergency Contact:</span> Try singing &quot;Help!&quot; by The Beatles 🔧
           </p>
         </div>
 
@@ -172,24 +172,24 @@ export default function MaintenancePage() {
           <div className="p-4 bg-background/30 rounded-lg border border-dashed border-orange-300/30">
             <h4 className="text-lg font-semibold mb-3">🔧 Test Your Mic (Maintenance Mode) 🔧</h4>
             <p className="text-sm text-muted-foreground mb-3">
-              While we're fixing things, you can practice your karaoke skills here:
+              While we&apos;re fixing things, you can practice your karaoke skills here:
             </p>
             <div className="space-y-2 text-xs text-muted-foreground">
               <div className="flex items-center space-x-2">
-                <span>🎵 "Bohemian Rhapsody" - Queen</span>
+                <span>🎵 &quot;Bohemian Rhapsody&quot; - Queen</span>
                 <span className="text-red-500">(Currently broken)</span>
               </div>
               <div className="flex items-center space-x-2">
-                <span>🎵 "Sweet Caroline" - Neil Diamond</span>
+                <span>🎵 &quot;Sweet Caroline&quot; - Neil Diamond</span>
                 <span className="text-yellow-500">(So-so)</span>
               </div>
               <div className="flex items-center space-x-2">
-                <span>🎵 "Wonderwall" - Oasis</span>
+                <span>🎵 &quot;Wonderwall&quot; - Oasis</span>
                 <span className="text-green-500">(Actually works!)</span>
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-3 italic">
-              Note: This is a joke. Please don't actually try to sing here. 
+              Note: This is a joke. Please don&apos;t actually try to sing here. 
               <br />
               (Unless you want to confuse the developers) 😅
             </p>
