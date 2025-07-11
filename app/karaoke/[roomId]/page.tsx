@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { useKaraokeRoom } from '@/hooks/useKaraokeRoom'
 import { useAuth } from '@/hooks/useAuth'
 import { useWebRTC } from '@/hooks/useWebRTC'
+import { useKaraokePlaybackSync } from '@/hooks/useKaraokePlaybackSync'
 import io, { Socket } from 'socket.io-client'
 import { 
   StreamVideo, 
@@ -65,8 +66,39 @@ export default function KaraokeRoom() {
   const router = useRouter()
   const { toast } = useToast()
   const roomId = params.roomId as string
-  const { room, loading: roomLoading, error: roomError, currentTime, currentLyric, nextLyrics, joinRoom, leaveRoom, togglePlayback, audio } = useKaraokeRoom()
+  const { room, loading: roomLoading, error: roomError, currentTime, currentLyric, nextLyrics, lyrics, joinRoom, leaveRoom, togglePlayback, audio } = useKaraokeRoom()
   const { user, loading: authLoading } = useAuth()
+  
+  // Host-controlled playback sync
+  const { play: hostPlay, pause: hostPause, seek: hostSeek, sync: hostSync, syncLyrics: hostSyncLyrics, setMusicVolume: hostSetMusicVolume, setMicVolume: hostSetMicVolume } = useKaraokePlaybackSync({
+    roomId,
+    isHost: user?.id === room?.host_id,
+    audio,
+    userId: user?.id || '',
+    currentLyric,
+    lyrics
+  })
+
+  // Volume state for host controls
+  const [musicVolume, setMusicVolume] = useState(0.6)
+  const [localMicVolume, setLocalMicVolume] = useState(0.8)
+
+  // Volume change handlers
+  const handleMusicVolumeChange = (volume: number) => {
+    setMusicVolume(volume)
+    setKaraokeVolume(volume)
+    if (user?.id === room?.host_id) {
+      hostSetMusicVolume(volume)
+    }
+  }
+
+  const handleMicVolumeChange = (volume: number) => {
+    setLocalMicVolume(volume)
+    setWebRTCMicVolume(volume)
+    if (user?.id === room?.host_id) {
+      hostSetMicVolume(volume)
+    }
+  }
   const {
     startStreaming,
     stopStreaming,
@@ -85,7 +117,7 @@ export default function KaraokeRoom() {
     toggleSong,
     setKaraokeAudio,
     setKaraokeVolume,
-    setMicVolume,
+    setMicVolume: setWebRTCMicVolume,
     // Monitoring features
     participantAudioLevels,
     hostAudioLevel,
@@ -117,6 +149,7 @@ export default function KaraokeRoom() {
   const [streakCount, setStreakCount] = useState(0)
   const [showStreak, setShowStreak] = useState(false)
   const [showDebugPanel, setShowDebugPanel] = useState(false)
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false)
   
   // Add a ref for the karaoke audio element
   const karaokeAudioDomRef = useRef<HTMLAudioElement | null>(null);
@@ -129,37 +162,32 @@ export default function KaraokeRoom() {
     }
   }, [audio, user?.id, room?.host_id, setKaraokeAudio]);
 
-  // For participants: Play karaoke audio locally when host starts streaming
+  // Note: Participant auto-play removed - music is now host-controlled only
+
+  // Note: Karaoke playback sync is now handled by useKaraokePlaybackSync hook using Supabase Realtime
+
+  // Track audio playing state
   useEffect(() => {
-    if (!isHost && audio && isStreaming && room?.current_song?.is_playing) {
-      console.log('Participant: Playing karaoke audio locally');
-      audio.play().catch(err => {
-        console.error('Error playing karaoke audio for participant:', err);
-      });
-    }
-  }, [isHost, audio, isStreaming, room?.current_song?.is_playing]);
+    if (!audio) return;
 
-  // Sync karaoke audio playback with host
+    const handlePlay = () => setIsAudioPlaying(true);
+    const handlePause = () => setIsAudioPlaying(false);
+
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+
+    return () => {
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+    };
+  }, [audio]);
+
+  // Sync lyrics when host's current lyric changes
   useEffect(() => {
-    if (!isHost && audio && socket) {
-      socket.on('karaoke-play', () => {
-        console.log('Participant: Host started karaoke playback');
-        audio.play().catch(err => {
-          console.error('Error playing karaoke audio:', err);
-        });
-      });
-
-      socket.on('karaoke-pause', () => {
-        console.log('Participant: Host paused karaoke playback');
-        audio.pause();
-      });
-
-      return () => {
-        socket.off('karaoke-play');
-        socket.off('karaoke-pause');
-      };
+    if (user?.id === room?.host_id && currentLyric) {
+      hostSyncLyrics();
     }
-  }, [isHost, audio, socket]);
+  }, [currentLyric, user?.id, room?.host_id, hostSyncLyrics]);
   
   // Reaction handling
   const handleReaction = (type: string) => {
@@ -180,6 +208,8 @@ export default function KaraokeRoom() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  // Note: User interaction handler removed - music is now host-controlled only
+
   // Scroll chat to bottom when new messages arrive
   useEffect(() => {
     if (chatRef.current) {
@@ -195,8 +225,8 @@ export default function KaraokeRoom() {
       }
       
       // Automatic redirect to maintenance page
-      router.push('/karaoke/maintenance')
-      return
+      //router.push('/karaoke/maintenance')
+      //return
       
       if (roomId && !room) {
         joinRoom(roomId).catch((err) => {
@@ -458,19 +488,14 @@ export default function KaraokeRoom() {
             size="icon"
             className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
             onClick={() => {
-              toggleSong();
-              togglePlayback();
-                  // Emit karaoke play/pause events for participants
-                  if (socket && roomId) {
-                    if (isSongPlaying) {
-                      socket.emit('karaoke-pause', roomId);
-                    } else {
-                      socket.emit('karaoke-play', roomId);
-                    }
-                  }
+              if (isAudioPlaying) {
+                hostPause();
+              } else {
+                hostPlay();
+              }
             }}
           >
-            {isSongPlaying ? (
+            {isAudioPlaying ? (
               <Pause className="h-6 w-6 text-white" />
             ) : (
               <Play className="h-6 w-6 text-white" />
@@ -479,6 +504,50 @@ export default function KaraokeRoom() {
             </TooltipTrigger>
             <TooltipContent>
               <p>{isSongPlaying ? 'Pause' : 'Play'}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Sync Button */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost" 
+                size="icon" 
+                className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
+                onClick={() => hostSync()}
+              >
+                <Music className="h-6 w-6 text-white" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Sync All Participants</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Lyrics Sync Button */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost" 
+                size="icon" 
+                className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
+                onClick={() => {
+                  hostSyncLyrics();
+                  toast({
+                    title: "Lyrics Synced",
+                    description: "All participants' lyrics have been synchronized.",
+                  });
+                }}
+              >
+                <MessageSquare className="h-6 w-6 text-white" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Sync Lyrics</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -513,9 +582,9 @@ export default function KaraokeRoom() {
             min="0"
             max="1"
             step="0.1"
-            defaultValue="0.8"
+            value={localMicVolume}
             className="w-20"
-            onChange={(e) => setMicVolume(parseFloat(e.target.value))}
+            onChange={(e) => handleMicVolumeChange(parseFloat(e.target.value))}
           />
         </div>
         <div className="flex items-center space-x-2">
@@ -525,9 +594,9 @@ export default function KaraokeRoom() {
             min="0"
             max="1"
             step="0.1"
-            defaultValue="0.6"
+            value={musicVolume}
             className="w-20"
-            onChange={(e) => setKaraokeVolume(parseFloat(e.target.value))}
+            onChange={(e) => handleMusicVolumeChange(parseFloat(e.target.value))}
           />
         </div>
       </div>
@@ -869,6 +938,12 @@ export default function KaraokeRoom() {
                   {currentLyric && (
                     <div className="lyrics-line active text-4xl font-bold mb-4 text-white bg-black/30 px-6 py-3 rounded-lg">
                       {currentLyric}
+                      {user?.id !== room.host_id && (
+                        <div className="text-sm text-white/60 mt-2 flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white/60 mr-2"></div>
+                          Synced with Host
+                        </div>
+                      )}
                     </div>
                   )}
                   
@@ -889,7 +964,18 @@ export default function KaraokeRoom() {
                 <div className="flex flex-col space-y-2">
                   <div className="flex items-center space-x-2">
                     <span className="text-white text-sm min-w-[40px]">{formatTime(currentTime)}</span>
-                    <div className="flex-1 h-2 bg-white/20 rounded-full overflow-hidden">
+                    <div 
+                      className={`flex-1 h-2 bg-white/20 rounded-full overflow-hidden ${user?.id === room.host_id ? 'cursor-pointer' : 'cursor-default'}`}
+                      onClick={(e) => {
+                        if (user?.id === room.host_id) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const clickX = e.clientX - rect.left;
+                          const percentage = clickX / rect.width;
+                          const newTime = percentage * (room.current_song?.duration || 1);
+                          hostSeek(newTime);
+                        }
+                      }}
+                    >
                       <div 
                         className="h-full bg-primary transition-all duration-100"
                         style={{ width: `${(currentTime / (room.current_song?.duration || 1)) * 100}%` }}
@@ -908,7 +994,15 @@ export default function KaraokeRoom() {
                     <div className="flex items-center justify-center space-x-4">
                       <Badge variant="secondary" className="text-sm flex items-center space-x-1">
                         <Music className="h-4 w-4" />
-                        <span>{room.current_song?.is_playing ? 'Playing' : 'Paused'}</span>
+                        <span>{isAudioPlaying ? 'Playing' : 'Paused'}</span>
+                      </Badge>
+                      <Badge variant="outline" className="text-sm flex items-center space-x-1">
+                        <Crown className="h-4 w-4" />
+                        <span>Host Controlled</span>
+                      </Badge>
+                      <Badge variant="default" className="text-sm flex items-center space-x-1 bg-green-600">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                        <span>Synced</span>
                       </Badge>
                       <Button
                         variant="outline"

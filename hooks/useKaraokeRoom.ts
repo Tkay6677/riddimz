@@ -167,6 +167,9 @@ export function useKaraokeRoom() {
       // Sync time with other participants
       socketRef.current?.emit('sync-time', room.id, audioElement.currentTime);
     });
+    
+    // Note: Auto-play removed - music will only play when host controls it
+    
     setAudio(audioElement);
 
     // Load lyrics
@@ -216,8 +219,7 @@ export function useKaraokeRoom() {
 
     if (currentLyricObj) {
       setCurrentLyric(currentLyricObj.text);
-      // Sync lyrics with other participants
-      socketRef.current?.emit('sync-lyrics', room?.id, currentLyricObj.text);
+      // Note: Lyrics sync is now handled by the playback sync system
       const currentIndex = lyrics.indexOf(currentLyricObj);
       const nextLyricsList = lyrics
         .slice(currentIndex + 1, currentIndex + 3)
@@ -514,6 +516,8 @@ export function useKaraokeRoom() {
     socketRef.current?.emit('sync-time', room?.id, audio.currentTime);
   };
 
+  // Note: startPlaybackIfBlocked removed - music is now host-controlled only
+
   const fetchRoom = async (roomId: string) => {
     try {
       setLoading(true);
@@ -752,12 +756,14 @@ export function useKaraokeRoom() {
     currentTime,
     currentLyric,
     nextLyrics,
+    lyrics,
     audio,
     publicSongUrl: getPublicSongUrl(room?.song_url),
     joinRoom,
     leaveRoom,
     getRoom,
     togglePlayback,
+
     sendMessage: async (content: string) => {
       if (!user || !room) throw new Error('Not authenticated or no room selected');
       const { error } = await supabase
