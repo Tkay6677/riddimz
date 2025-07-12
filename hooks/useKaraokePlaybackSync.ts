@@ -10,6 +10,7 @@ interface UseKaraokePlaybackSyncProps {
   userId: string;
   currentLyric?: string | null;
   lyrics?: Array<{ time: number; text: string }>;
+  onVolumeChange?: (volumeType: 'music' | 'mic', volume: number) => void;
 }
 
 interface PlaybackEvent {
@@ -22,7 +23,7 @@ interface PlaybackEvent {
   volume?: number;
 }
 
-export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentLyric, lyrics }: UseKaraokePlaybackSyncProps) {
+export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentLyric, lyrics, onVolumeChange }: UseKaraokePlaybackSyncProps) {
   const channelRef = useRef<any>(null);
 
   // Join Supabase Realtime channel for this room
@@ -90,6 +91,9 @@ export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentL
         case 'volume':
           // Volume control - this will be handled by the parent component
           console.log('[KaraokePlaybackSync] Received volume change:', payload.volumeType, payload.volume);
+          if (onVolumeChange) {
+            onVolumeChange(payload.volumeType!, payload.volume!);
+          }
           break;
       }
     });
@@ -97,7 +101,7 @@ export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentL
     return () => {
       channel.unsubscribe();
     };
-  }, [roomId, audio, userId]);
+  }, [roomId, audio, userId, onVolumeChange]);
 
   // Host: Emit playback events
   const emitPlaybackEvent = (type: PlaybackEvent['type'], time?: number, lyric?: string, volumeType?: 'music' | 'mic', volume?: number) => {

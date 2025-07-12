@@ -69,6 +69,20 @@ export default function KaraokeRoom() {
   const { room, loading: roomLoading, error: roomError, currentTime, currentLyric, nextLyrics, lyrics, joinRoom, leaveRoom, togglePlayback, audio } = useKaraokeRoom()
   const { user, loading: authLoading } = useAuth()
   
+  // Volume state for host controls
+  const [musicVolume, setMusicVolume] = useState(0.6)
+  const [localMicVolume, setLocalMicVolume] = useState(0.8)
+  
+  // Handle volume events from host
+  const handleVolumeEvent = (volumeType: 'music' | 'mic', volume: number) => {
+    console.log('[KaraokeRoom] Received volume event:', volumeType, volume);
+    if (volumeType === 'music') {
+      setMusicVolume(volume);
+    } else if (volumeType === 'mic') {
+      setLocalMicVolume(volume);
+    }
+  };
+
   // Host-controlled playback sync
   const { play: hostPlay, pause: hostPause, seek: hostSeek, sync: hostSync, syncLyrics: hostSyncLyrics, setMusicVolume: hostSetMusicVolume, setMicVolume: hostSetMicVolume } = useKaraokePlaybackSync({
     roomId,
@@ -76,12 +90,9 @@ export default function KaraokeRoom() {
     audio,
     userId: user?.id || '',
     currentLyric,
-    lyrics
+    lyrics,
+    onVolumeChange: handleVolumeEvent
   })
-
-  // Volume state for host controls
-  const [musicVolume, setMusicVolume] = useState(0.6)
-  const [localMicVolume, setLocalMicVolume] = useState(0.8)
 
   // Volume change handlers
   const handleMusicVolumeChange = (volume: number) => {
@@ -188,6 +199,23 @@ export default function KaraokeRoom() {
       hostSyncLyrics();
     }
   }, [currentLyric, user?.id, room?.host_id, hostSyncLyrics]);
+
+  // Update karaoke audio volume when music volume changes
+  useEffect(() => {
+    if (karaokeAudioDomRef.current) {
+      karaokeAudioDomRef.current.volume = musicVolume;
+      console.log('[KaraokeRoom] Updated karaoke audio volume to:', musicVolume);
+    }
+  }, [musicVolume]);
+
+  // Handle volume changes from host (for participants)
+  useEffect(() => {
+    if (user?.id !== room?.host_id && audio) {
+      // Participants should also update their audio volume when host changes it
+      audio.volume = musicVolume;
+      console.log('[KaraokeRoom] Participant updated audio volume to:', musicVolume);
+    }
+  }, [musicVolume, user?.id, room?.host_id, audio]);
   
   // Reaction handling
   const handleReaction = (type: string) => {
@@ -586,6 +614,7 @@ export default function KaraokeRoom() {
             className="w-20"
             onChange={(e) => handleMicVolumeChange(parseFloat(e.target.value))}
           />
+          <span className="text-white text-xs min-w-[30px]">{Math.round(localMicVolume * 100)}%</span>
         </div>
         <div className="flex items-center space-x-2">
           <Volume2 className="h-4 w-4 text-white" />
@@ -598,6 +627,7 @@ export default function KaraokeRoom() {
             className="w-20"
             onChange={(e) => handleMusicVolumeChange(parseFloat(e.target.value))}
           />
+          <span className="text-white text-xs min-w-[30px]">{Math.round(musicVolume * 100)}%</span>
         </div>
       </div>
     );
