@@ -157,7 +157,7 @@ export class UserInteractionService {
       type: 'play'
     }).sort({ timestamp: -1 }).limit(limit)
 
-    const songIds = [...new Set(playInteractions.map(interaction => interaction.songId))]
+    const songIds = Array.from(new Set(playInteractions.map(interaction => interaction.songId)))
     const songs = await Song.find({ _id: { $in: songIds } })
     
     // Sort songs by most recent play

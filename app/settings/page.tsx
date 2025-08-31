@@ -19,7 +19,7 @@ import { useTheme } from 'next-themes'
 
 export default function SettingsPage() {
   const { user, loading: authLoading, signOut } = useAuth()
-  const { profile, updateProfile, loading: profileLoading } = useProfile()
+  const { profile, updateProfile, loading: profileLoading } = useProfile(user)
   const { setTheme, theme } = useTheme()
   const router = useRouter()
   const { toast } = useToast()

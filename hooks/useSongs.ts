@@ -5,7 +5,30 @@ import { SongService, UserInteractionService, HybridService } from '@/lib/databa
 import { ISong } from '@/lib/models/Song'
 import { useAuth } from './useAuth'
 
-export interface SongWithUrls extends ISong {
+export interface SongWithUrls {
+  _id: string
+  title: string
+  artist: string
+  duration: number
+  genre?: string
+  audioFileId: string
+  lyricsFileId?: string
+  coverArtFileId?: string
+  uploaderId: string
+  uploaderUsername: string
+  playCount: number
+  likesCount: number
+  favoritesCount: number
+  trendingScore: number
+  createdAt: Date
+  updatedAt: Date
+  isNft: boolean
+  tags: string[]
+  description?: string
+  language?: string
+  mood?: string
+  tempo?: 'slow' | 'medium' | 'fast'
+  difficulty?: 'easy' | 'medium' | 'hard'
   audioUrl?: string
   lyricsUrl?: string
   coverArtUrl?: string
@@ -33,14 +56,14 @@ export function useSongs() {
       if (user) {
         const songsWithFavorites = await Promise.all(
           songsWithUrls.map(async (song) => ({
-            ...song,
+            ...(song.toObject ? song.toObject() : song),
             is_favorite: await UserInteractionService.isUserFavorite(user.id, song._id)
           }))
         )
-        return songsWithFavorites
+        return songsWithFavorites as SongWithUrls[]
       }
       
-      return songsWithUrls.map(song => ({ ...song, is_favorite: false }))
+      return songsWithUrls.map(song => ({ ...(song.toObject ? song.toObject() : song), is_favorite: false })) as SongWithUrls[]
     } catch (err) {
       handleError(err, 'fetch trending songs')
       return []
@@ -59,14 +82,14 @@ export function useSongs() {
       if (user) {
         const songsWithFavorites = await Promise.all(
           songsWithUrls.map(async (song) => ({
-            ...song,
+            ...(song.toObject ? song.toObject() : song),
             is_favorite: await UserInteractionService.isUserFavorite(user.id, song._id)
           }))
         )
-        return songsWithFavorites
+        return songsWithFavorites as SongWithUrls[]
       }
       
-      return songsWithUrls.map(song => ({ ...song, is_favorite: false }))
+      return songsWithUrls.map(song => ({ ...(song.toObject ? song.toObject() : song), is_favorite: false })) as SongWithUrls[]
     } catch (err) {
       handleError(err, 'fetch new releases')
       return []
@@ -85,14 +108,14 @@ export function useSongs() {
       if (user) {
         const songsWithFavorites = await Promise.all(
           songsWithUrls.map(async (song) => ({
-            ...song,
+            ...(song.toObject ? song.toObject() : song),
             is_favorite: await UserInteractionService.isUserFavorite(user.id, song._id)
           }))
         )
-        return songsWithFavorites
+        return songsWithFavorites as SongWithUrls[]
       }
       
-      return songsWithUrls.map(song => ({ ...song, is_favorite: false }))
+      return songsWithUrls.map(song => ({ ...(song.toObject ? song.toObject() : song), is_favorite: false })) as SongWithUrls[]
     } catch (err) {
       handleError(err, 'fetch user songs')
       return []
@@ -120,14 +143,14 @@ export function useSongs() {
       if (user) {
         const songsWithFavorites = await Promise.all(
           songsWithUrls.map(async (song) => ({
-            ...song,
+            ...(song.toObject ? song.toObject() : song),
             is_favorite: await UserInteractionService.isUserFavorite(user.id, song._id)
           }))
         )
-        return songsWithFavorites
+        return songsWithFavorites as SongWithUrls[]
       }
       
-      return songsWithUrls.map(song => ({ ...song, is_favorite: false }))
+      return songsWithUrls.map(song => ({ ...(song.toObject ? song.toObject() : song), is_favorite: false })) as SongWithUrls[]
     } catch (err) {
       handleError(err, 'search songs')
       return []
@@ -146,14 +169,14 @@ export function useSongs() {
       if (user) {
         const songsWithFavorites = await Promise.all(
           songsWithUrls.map(async (song) => ({
-            ...song,
+            ...(song.toObject ? song.toObject() : song),
             is_favorite: await UserInteractionService.isUserFavorite(user.id, song._id)
           }))
         )
-        return songsWithFavorites
+        return songsWithFavorites as SongWithUrls[]
       }
       
-      return songsWithUrls.map(song => ({ ...song, is_favorite: false }))
+      return songsWithUrls.map(song => ({ ...(song.toObject ? song.toObject() : song), is_favorite: false })) as SongWithUrls[]
     } catch (err) {
       handleError(err, 'fetch songs by genre')
       return []
@@ -170,10 +193,10 @@ export function useSongs() {
       
       if (songWithUrls && user) {
         const is_favorite = await UserInteractionService.isUserFavorite(user.id, songId)
-        return { ...songWithUrls, is_favorite }
+        return { ...(songWithUrls.toObject ? songWithUrls.toObject() : songWithUrls), is_favorite } as SongWithUrls
       }
       
-      return songWithUrls ? { ...songWithUrls, is_favorite: false } : null
+      return songWithUrls ? { ...(songWithUrls.toObject ? songWithUrls.toObject() : songWithUrls), is_favorite: false } as SongWithUrls : null
     } catch (err) {
       handleError(err, 'fetch song')
       return null
@@ -190,7 +213,7 @@ export function useSongs() {
       setError(null)
       const songs = await UserInteractionService.getUserFavorites(user.id, limit)
       const songsWithUrls = await HybridService.getSongsWithUrls(songs)
-      return songsWithUrls.map(song => ({ ...song, is_favorite: true }))
+      return songsWithUrls.map(song => ({ ...(song.toObject ? song.toObject() : song), is_favorite: true })) as SongWithUrls[]
     } catch (err) {
       handleError(err, 'fetch user favorites')
       return []
@@ -210,11 +233,11 @@ export function useSongs() {
       
       const songsWithFavorites = await Promise.all(
         songsWithUrls.map(async (song) => ({
-          ...song,
+          ...(song.toObject ? song.toObject() : song),
           is_favorite: await UserInteractionService.isUserFavorite(user.id, song._id)
         }))
       )
-      return songsWithFavorites
+      return songsWithFavorites as SongWithUrls[]
     } catch (err) {
       handleError(err, 'fetch recently played songs')
       return []
