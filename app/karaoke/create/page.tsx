@@ -10,17 +10,19 @@ import { Mic, Music, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import SongPicker from '@/components/karaoke/song-picker';
+import { useToast } from '@/components/ui/use-toast';
 
 export const dynamic = 'force-dynamic'
 
 export default function CreateKaraokeRoom() {
   const router = useRouter();
+  const { toast } = useToast();
   const [isCreating, setIsCreating] = useState(false);
+  const [selectedSong, setSelectedSong] = useState<any>(null);
   const [roomData, setRoomData] = useState({
     name: '',
     description: '',
-    songFile: null as File | null,
-    lyricsFile: null as File | null,
     isPrivate: false,
     password: '',
     maxParticipants: 10,
@@ -38,47 +40,39 @@ export default function CreateKaraokeRoom() {
     }
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'song' | 'lyrics') => {
-    if (e.target.files && e.target.files[0]) {
-      setRoomData({
-        ...roomData,
-        [`${type}File`]: e.target.files[0],
-      });
-    }
+  const handleSongSelect = (song: any) => {
+    setSelectedSong(song);
   };
 
   const createRoom = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!roomData.name || !roomData.songFile || !roomData.lyricsFile) return;
+    if (!roomData.name || !selectedSong) {
+      toast({
+        variant: "destructive",
+        title: "Missing Information",
+        description: "Please provide a room name and select a song.",
+        duration: 4000,
+      });
+      return;
+    }
 
     setIsCreating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Upload song file
-      const songPath = `karaoke-songs/${Date.now()}_${roomData.songFile.name}`;
-      const { error: songError } = await supabase.storage
-        .from('karaoke-songs')
-        .upload(songPath, roomData.songFile);
-      if (songError) throw songError;
-
-      // Upload lyrics file
-      const lyricsPath = `lyrics/${Date.now()}_${roomData.lyricsFile.name}`;
-      const { error: lyricsError } = await supabase.storage
-        .from('karaoke-songs')
-        .upload(lyricsPath, roomData.lyricsFile);
-      if (lyricsError) throw lyricsError;
-
-      // Create room
+      // Create room with selected song data
       const { data: room, error: roomError } = await supabase
         .from('karaoke_rooms')
         .insert({
           name: roomData.name,
           description: roomData.description,
           host_id: user.id,
-          song_url: songPath,
-          lyrics_url: lyricsPath,
+          song_url: selectedSong.audioUrl,
+          lyrics_url: selectedSong.lyricsUrl,
+          song_id: selectedSong._id,
+          song_title: selectedSong.title,
+          song_artist: selectedSong.artist,
           is_live: true,
           is_private: roomData.isPrivate,
           password: roomData.isPrivate ? roomData.password : null,
@@ -109,9 +103,21 @@ export default function CreateKaraokeRoom() {
 
       if (settingsError) throw settingsError;
 
+      toast({
+        title: "Room Created Successfully!",
+        description: `Your karaoke room "${roomData.name}" is ready.`,
+        duration: 4000,
+      });
+
       router.push(`/karaoke/${room.id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating room:', error);
+      toast({
+        variant: "destructive",
+        title: "Error Creating Room",
+        description: error.message || "Something went wrong. Please try again.",
+        duration: 5000,
+      });
     } finally {
       setIsCreating(false);
     }
@@ -303,35 +309,19 @@ export default function CreateKaraokeRoom() {
               </div>
             </div>
 
+            {/* Song Selection */}
             <div>
-              <Label htmlFor="song">Karaoke Track</Label>
-              <div className="mt-1">
-                <Input
-                  id="song"
-                  type="file"
-                  accept="audio/*"
-                  onChange={(e) => handleFileChange(e, 'song')}
-                  required
-                />
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">Upload your karaoke track (MP3)</p>
+              <SongPicker 
+                onSongSelect={handleSongSelect}
+                selectedSongId={selectedSong?._id}
+              />
             </div>
 
-            <div>
-              <Label htmlFor="lyrics">Lyrics File</Label>
-              <div className="mt-1">
-                <Input
-                  id="lyrics"
-                  type="file"
-                  accept=".lrc,.txt"
-                  onChange={(e) => handleFileChange(e, 'lyrics')}
-                  required
-                />
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">Upload your lyrics file (LRC or TXT)</p>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={isCreating}>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isCreating || !selectedSong}
+            >
               {isCreating ? 'Creating Room...' : 'Create Room'}
             </Button>
           </form>
