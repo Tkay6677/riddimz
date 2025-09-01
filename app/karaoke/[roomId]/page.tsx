@@ -290,6 +290,20 @@ export default function KaraokeRoom() {
     chatSocket.on('connect', () => {
       console.log('Chat socket connected:', chatSocket.id);
       chatSocket.emit('join-room', roomId, user.id, user.id === room?.host_id);
+      
+      // Add participant to database when joining
+      if (user.id !== room?.host_id) {
+        supabase
+          .from('room_participants')
+          .insert({
+            room_id: roomId,
+            user_id: user.id,
+            role: 'participant'
+          })
+          .then(({ error }) => {
+            if (error) console.error('Error adding participant:', error);
+          });
+      }
     });
 
     chatSocket.on('connect_error', (error) => {
@@ -343,17 +357,61 @@ export default function KaraokeRoom() {
       });
     });
 
+    chatSocket.on('user-left', (leftUserId: string, isHost: boolean) => {
+      toast({
+        title: 'User Left',
+        description: `${leftUserId} ${isHost ? '(Host)' : ''} left the room`,
+      });
+      
+      // If host left, redirect all participants to karaoke lobby
+      if (isHost && leftUserId !== user.id) {
+        toast({
+          title: 'Room Closed',
+          description: 'The host has ended the session',
+          duration: 5000,
+        });
+        setTimeout(() => {
+          router.push('/karaoke');
+        }, 2000);
+      }
+    });
+
+    chatSocket.on('room-deleted', () => {
+      toast({
+        title: 'Room Closed',
+        description: 'This karaoke room has been closed by the host',
+        duration: 5000,
+      });
+      setTimeout(() => {
+        router.push('/karaoke');
+      }, 2000);
+    });
+
     setSocket(chatSocket);
 
     return () => {
+      // Clean up participant when component unmounts
+      if (user?.id !== room?.host_id) {
+        supabase
+          .from('room_participants')
+          .delete()
+          .eq('room_id', roomId)
+          .eq('user_id', user.id)
+          .then(({ error }) => {
+            if (error) console.error('Error removing participant on unmount:', error);
+          });
+      }
+      
       if (chatSocket) {
-                chatSocket.off('chat-message');
+        chatSocket.off('chat-message');
         chatSocket.off('reaction');
         chatSocket.off('connect');
         chatSocket.off('connect_error');
         chatSocket.off('disconnect');
         chatSocket.off('error');
-          chatSocket.off('user-joined');
+        chatSocket.off('user-joined');
+        chatSocket.off('user-left');
+        chatSocket.off('room-deleted');
         chatSocket.disconnect();
       }
     };
@@ -416,11 +474,55 @@ export default function KaraokeRoom() {
   }, [user?.id, room?.host_id, isStreaming, startStreaming, toast, call, hasUserInteracted]);
 
   const handleLeaveRoom = async () => {
-    await leaveRoom(roomId)
-    if (call) {
-      await call.leave();
+    try {
+      // If user is the host, delete the room from database
+      if (user?.id === room?.host_id) {
+        const { error } = await supabase
+          .from('karaoke_rooms')
+          .delete()
+          .eq('id', roomId);
+        
+        if (error) {
+          console.error('Error deleting room:', error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to delete room",
+            duration: 3000,
+          });
+        } else {
+          toast({
+            title: "Room Deleted",
+            description: "The karaoke room has been closed",
+            duration: 3000,
+          });
+        }
+      }
+      
+      await leaveRoom(roomId);
+      if (call) {
+        await call.leave();
+      }
+      
+      // Remove participant from database when leaving
+      if (user?.id !== room?.host_id) {
+        await supabase
+          .from('room_participants')
+          .delete()
+          .eq('room_id', roomId)
+          .eq('user_id', user.id);
+      }
+      
+      // Emit leave event to socket for participant count tracking
+      if (socket) {
+        socket.emit('leave-room', roomId, user?.id);
+      }
+      
+    } catch (error) {
+      console.error('Error leaving room:', error);
+    } finally {
+      router.push('/karaoke');
     }
-    router.push('/karaoke')
   }
 
   const handleSendMessage = async (e: React.FormEvent) => {

@@ -27,6 +27,7 @@ interface Room {
     artist: string
   } | null
   participants_count: number
+  current_participants: number
   is_live: boolean
   created_at: string
 }
@@ -74,7 +75,8 @@ export default function KaraokePage() {
         // Transform the data to match our Room interface
         const transformedRooms = data.map(room => ({
           ...room,
-          participants_count: room.participants?.length || 0
+          participants_count: room.participants?.length || 0,
+          current_participants: room.current_participants || 0
         })) as Room[]
         
         setRooms(transformedRooms)
@@ -229,7 +231,7 @@ export default function KaraokePage() {
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center">
                     <Users className="h-4 w-4 mr-1" />
-                    {room.participants_count}
+                    {room.current_participants}
                   </div>
                   <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-1" />
