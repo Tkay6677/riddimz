@@ -21,6 +21,7 @@ import { useKaraokeRoom } from '@/hooks/useKaraokeRoom'
 import { useAuth } from '@/hooks/useAuth'
 import { useWebRTC } from '@/hooks/useWebRTC'
 import { useKaraokePlaybackSync } from '@/hooks/useKaraokePlaybackSync'
+import { supabase } from '@/lib/supabase'
 import io, { Socket } from 'socket.io-client'
 import { 
   StreamVideo, 
@@ -292,7 +293,7 @@ export default function KaraokeRoom() {
       chatSocket.emit('join-room', roomId, user.id, user.id === room?.host_id);
       
       // Add participant to database when joining
-      if (user.id !== room?.host_id) {
+      if (user?.id && user.id !== room?.host_id) {
         supabase
           .from('room_participants')
           .insert({
@@ -391,7 +392,7 @@ export default function KaraokeRoom() {
 
     return () => {
       // Clean up participant when component unmounts
-      if (user?.id !== room?.host_id) {
+      if (user?.id && user.id !== room?.host_id) {
         supabase
           .from('room_participants')
           .delete()
@@ -505,7 +506,7 @@ export default function KaraokeRoom() {
       }
       
       // Remove participant from database when leaving
-      if (user?.id !== room?.host_id) {
+      if (user?.id && user.id !== room?.host_id) {
         await supabase
           .from('room_participants')
           .delete()
