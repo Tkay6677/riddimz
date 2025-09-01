@@ -14,7 +14,7 @@ interface Song {
   _id: string;
   title: string;
   artist: string;
-  genre: string;
+  genre?: string;
   duration: number;
   audioUrl?: string;
   lyricsUrl?: string;
@@ -29,25 +29,26 @@ interface SongPickerProps {
 export default function SongPicker({ onSongSelect, selectedSongId }: SongPickerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
-  const [songs, setSongs] = useState<Song[]>([]);
+  const [songs, setSongs] = useState<any[]>([]);
   const [genres, setGenres] = useState<string[]>([]);
-  const { loading, getAllSongs, getGenres } = useSongs();
+  const { loading, getTrendingSongs, getPopularGenres } = useSongs();
 
   useEffect(() => {
     const loadSongs = async () => {
       try {
-        const songsData = await getAllSongs();
+        // Use getTrendingSongs to get all available songs
+        const songsData = await getTrendingSongs(100);
         setSongs(songsData);
         
-        const genresData = await getGenres();
-        setGenres(genresData);
+        const genresData = await getPopularGenres();
+        setGenres(genresData.map(g => g.genre));
       } catch (error) {
         console.error('Error loading songs:', error);
       }
     };
     
     loadSongs();
-  }, [getAllSongs, getGenres]);
+  }, [getTrendingSongs, getPopularGenres]);
 
   const filteredSongs = songs.filter((song: Song) => {
     const matchesSearch = searchTerm === '' || 
