@@ -52,8 +52,9 @@ export default function Home() {
                 <h3 className="text-xl font-semibold mb-4">Welcome to Riddimz</h3>
                 <div className="text-center py-8">
                   <p className="text-lg text-muted-foreground mb-4">
-                    Your karaoke platform is currently being updated with new features.
-                  </p>
+                    We have temporary disabled the karaoke feature as to fine tune the platform 
+                    Riddimz is leveling up! Expect new tool, smoother experience, and exclusives drops coming your way soon.
+                    Thanks for your patience!</p>
                   <p className="text-muted-foreground">
                     Stay tuned for an amazing karaoke experience!
                   </p>
