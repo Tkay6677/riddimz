@@ -7,18 +7,26 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Music, Clock, User } from 'lucide-react';
+import { Search, Music, Clock, User, Mic } from 'lucide-react';
 import { useSongs } from '@/hooks/useSongs';
+import { supabase } from '@/lib/supabase';
 
 interface Song {
-  _id: string;
+  _id?: string;
+  id?: string;
   title: string;
   artist: string;
   genre?: string;
   duration: number;
   audioUrl?: string;
+  audio_url?: string;
   lyricsUrl?: string;
+  lyrics_url?: string;
   coverUrl?: string;
+  cover_url?: string;
+  cover_art_url?: string;
+  is_karaoke?: boolean;
+  user_id?: string;
 }
 
 interface SongPickerProps {
@@ -36,9 +44,46 @@ export default function SongPicker({ onSongSelect, selectedSongId }: SongPickerP
   useEffect(() => {
     const loadSongs = async () => {
       try {
-        // Use getTrendingSongs to get all available songs
-        const songsData = await getTrendingSongs(100);
-        setSongs(songsData);
+        // Load MongoDB songs
+        const mongoSongs = await getTrendingSongs(100);
+        
+        // Load Supabase uploaded songs
+        const { data: supabaseSongs, error } = await supabase
+          .from('songs')
+          .select(`
+            id,
+            title,
+            artist,
+            duration,
+            audio_url,
+            cover_art_url,
+            lyrics_url,
+            is_karaoke,
+            user_id,
+            created_at
+          `)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error loading Supabase songs:', error);
+        }
+
+        // Transform Supabase songs to match interface
+        const transformedSupabaseSongs = (supabaseSongs || []).map(song => ({
+          _id: song.id,
+          title: song.title,
+          artist: song.artist,
+          duration: song.duration,
+          audioUrl: song.audio_url,
+          lyricsUrl: song.lyrics_url,
+          coverUrl: song.cover_art_url,
+          is_karaoke: song.is_karaoke,
+          user_id: song.user_id
+        }));
+
+        // Combine both sources
+        const allSongs = [...mongoSongs, ...transformedSupabaseSongs];
+        setSongs(allSongs);
         
         const genresData = await getPopularGenres();
         setGenres(genresData.map(g => g.genre));
@@ -134,9 +179,9 @@ export default function SongPicker({ onSongSelect, selectedSongId }: SongPickerP
             ) : (
               filteredSongs.map((song: Song) => (
                 <Card
-                  key={song._id}
+                  key={song._id || song.id}
                   className={`cursor-pointer transition-colors hover:bg-muted/50 ${
-                    selectedSongId === song._id ? 'ring-2 ring-primary bg-muted' : ''
+                    selectedSongId === (song._id || song.id) ? 'ring-2 ring-primary bg-muted' : ''
                   }`}
                   onClick={() => onSongSelect(song)}
                 >
@@ -159,9 +204,9 @@ export default function SongPicker({ onSongSelect, selectedSongId }: SongPickerP
                         </div>
                       </div>
                       
-                      {song.coverUrl && (
+                      {(song.coverUrl || song.cover_url || song.cover_art_url) && (
                         <img
-                          src={song.coverUrl}
+                          src={song.coverUrl || song.cover_url || song.cover_art_url}
                           alt={`${song.title} cover`}
                           className="w-12 h-12 rounded-md object-cover ml-4 flex-shrink-0"
                         />
@@ -169,15 +214,21 @@ export default function SongPicker({ onSongSelect, selectedSongId }: SongPickerP
                     </div>
                     
                     <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-                      {song.audioUrl && (
+                      {(song.audioUrl || song.audio_url) && (
                         <Badge variant="outline" className="text-xs">
                           <Music className="h-3 w-3 mr-1" />
                           Audio
                         </Badge>
                       )}
-                      {song.lyricsUrl && (
+                      {(song.lyricsUrl || song.lyrics_url) && (
                         <Badge variant="outline" className="text-xs">
                           Lyrics
+                        </Badge>
+                      )}
+                      {song.is_karaoke && (
+                        <Badge variant="outline" className="text-xs bg-purple-100 text-purple-800">
+                          <Music className="h-3 w-3 mr-1" />
+                          Karaoke
                         </Badge>
                       )}
                     </div>

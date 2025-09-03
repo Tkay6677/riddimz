@@ -92,13 +92,13 @@ const Header = () => {
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
-                <Link href="/profile" className="w-full">Profile</Link>
+                <span className="w-full text-muted-foreground cursor-not-allowed">Profile (Disabled)</span>
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <Link href="/dashboard" className="w-full">Dashboard</Link>
+                <span className="w-full text-muted-foreground cursor-not-allowed">Dashboard (Disabled)</span>
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <Link href="/settings" className="w-full">Settings</Link>
+                <span className="w-full text-muted-foreground cursor-not-allowed">Settings (Disabled)</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="cursor-pointer" disabled={isLoggingOut}>
@@ -131,24 +131,12 @@ const Header = () => {
             >
               Home
             </Link>
-            <Link 
-              href="/discover" 
-              className={cn(
-                "px-3 py-2 rounded-md",
-                pathname === "/discover" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
-              )}
-            >
-              Discover
-            </Link>
-            <Link 
-              href="/library" 
-              className={cn(
-                "px-3 py-2 rounded-md",
-                pathname === "/library" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
-              )}
-            >
-              Library
-            </Link>
+            <span className="px-3 py-2 rounded-md text-muted-foreground cursor-not-allowed">
+              Discover (Disabled)
+            </span>
+            <span className="px-3 py-2 rounded-md text-muted-foreground cursor-not-allowed">
+              Library (Disabled)
+            </span>
             <button 
               onClick={handleLogout}
               disabled={isLoggingOut}

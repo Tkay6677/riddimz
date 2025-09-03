@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export default function DiscoverPage() {
+export default function LibraryPage() {
   const router = useRouter();
 
   useEffect(() => {

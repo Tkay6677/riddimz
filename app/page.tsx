@@ -32,33 +32,38 @@ export default function Home() {
       <div className="my-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-3xl font-bold">Explore Riddimz</h2>
-          <Button variant="outline" asChild>
+          {/* Disabled discover link - temporarily hidden */}
+          {/* <Button variant="outline" asChild>
             <Link href="/discover">View All</Link>
-          </Button>
+          </Button> */}
         </div>
         
         <Tabs defaultValue="all" className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="music">Music</TabsTrigger>
-            <TabsTrigger value="karaoke">Karaoke</TabsTrigger>
+            {/* Disabled music and karaoke tabs - temporarily hidden */}
+            {/* <TabsTrigger value="music">Music</TabsTrigger>
+            <TabsTrigger value="karaoke">Karaoke</TabsTrigger> */}
           </TabsList>
           
           <TabsContent value="all">
             <div className="space-y-8">
               <section>
-                <h3 className="text-xl font-semibold mb-4">Top Tracks</h3>
-                <MusicGrid limit={4} />
-              </section>
-              
-              <section>
-                <h3 className="text-xl font-semibold mb-4">Live Karaoke Rooms</h3>
-                <KaraokeRooms limit={3} />
+                <h3 className="text-xl font-semibold mb-4">Welcome to Riddimz</h3>
+                <div className="text-center py-8">
+                  <p className="text-lg text-muted-foreground mb-4">
+                    Your karaoke platform is currently being updated with new features.
+                  </p>
+                  <p className="text-muted-foreground">
+                    Stay tuned for an amazing karaoke experience!
+                  </p>
+                </div>
               </section>
             </div>
           </TabsContent>
           
-          <TabsContent value="music">
+          {/* Disabled music and karaoke tab content - temporarily hidden */}
+          {/* <TabsContent value="music">
             <div className="space-y-8">
               <section>
                 <div className="flex justify-between items-center mb-4">
@@ -138,7 +143,7 @@ export default function Home() {
                 </div>
               </section>
             </div>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </div>
     </div>

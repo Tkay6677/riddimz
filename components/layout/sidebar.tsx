@@ -82,13 +82,17 @@ export function Sidebar() {
               MAIN
             </h3>
             <NavItem href="/" icon={Home} label={isCollapsed ? "" : "Home"} />
-            <NavItem href="/discover" icon={Radio} label={isCollapsed ? "" : "Discover"} />
-            <NavItem href="/library" icon={Library} label={isCollapsed ? "" : "Library"} />
+            {/* Disabled pages - temporarily hidden */}
+          {/* <SidebarItem href="/discover" icon={Compass} label="Discover" /> */}
+          {/* <SidebarItem href="/library" icon={Library} label="Library" /> */}
+          {/* <SidebarItem href="/music" icon={Music} label="Music" /> */}
+          {/* <SidebarItem href="/karaoke" icon={Mic} label="Karaoke" /> */}
           </div>
 
           {!isCollapsed && <Separator />}
           
-          <div>
+          {/* Disabled categories section - temporarily hidden */}
+          {/* <div>
             <h3 className={cn(
               "text-xs font-medium px-2 mb-2",
               isCollapsed && "sr-only"
@@ -98,22 +102,37 @@ export function Sidebar() {
             <NavItem href="/music" icon={Music} label={isCollapsed ? "" : "Music"} />
             <NavItem href="/karaoke" icon={Mic} label={isCollapsed ? "" : "Karaoke"} />
             <NavItem href="/albums" icon={Disc} label={isCollapsed ? "" : "Albums"} />
-          </div>
+          </div> */}
 
           {!isCollapsed && <Separator />}
           
-          <div>
+          {/* Disabled user content section - temporarily hidden */}
+          {/* <div>
+            <h3 className={cn(
+              "text-xs font-medium px-2 mb-2",
+              isCollapsed && "sr-only"
+            )}>
+              USER CONTENT
+            </h3>
+            <NavItem href="/upload" icon={Upload} label={isCollapsed ? "" : "Upload"} />
+            <NavItem href="/profile" icon={User} label={isCollapsed ? "" : "Profile"} />
+            <NavItem href="/settings" icon={Settings} label={isCollapsed ? "" : "Settings"} />
+          </div> */}
+
+          {!isCollapsed && <Separator />}
+          
+          {/* Disabled your content section - temporarily hidden */}
+          {/* <div>
             <h3 className={cn(
               "text-xs font-medium px-2 mb-2",
               isCollapsed && "sr-only"
             )}>
               YOUR CONTENT
             </h3>
-            {/*<NavItem href="/favorites" icon={Heart} label={isCollapsed ? "" : "Favorites"} />*/}
+            <NavItem href="/favorites" icon={Heart} label={isCollapsed ? "" : "Favorites"} />
             <NavItem href="/profile" icon={User} label={isCollapsed ? "" : "Profile"} />
-            {/*<NavItem href="/pro" icon={Crown} label={isCollapsed ? "" : "Upgrade to PRO"} isPro={true} />*/}
-            {/*<NavItem href="/nfts" icon={Award} label={isCollapsed ? "" : "My NFTs"} />*/}
-          </div>
+            <NavItem href="/pro" icon={Crown} label={isCollapsed ? "" : "Upgrade to PRO"} isPro={true} />
+          </div> */}
 
           {!isCollapsed && (
             <>

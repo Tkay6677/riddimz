@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export default function DiscoverPage() {
+export default function KaraokeRoomPage() {
   const router = useRouter();
 
   useEffect(() => {
