@@ -8,6 +8,7 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { AppProvider } from '@/providers/AppProvider';
 import { WalletContextProvider } from '@/components/providers/wallet-provider';
 import SupabaseProvider from '@/lib/supabase-context';
+import { GlobalMusicPlayer } from '@/components/GlobalMusicPlayer';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -44,6 +45,7 @@ export default function RootLayout({
                 </main>
               </div>
             </div>
+            <GlobalMusicPlayer />
             <Toaster />
           </WalletContextProvider>
             </AppProvider>

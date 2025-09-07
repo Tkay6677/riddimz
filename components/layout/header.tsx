@@ -92,13 +92,13 @@ const Header = () => {
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
-                <span className="w-full text-muted-foreground cursor-not-allowed">Profile (Disabled)</span>
+                <Link href="/profile" className="w-full">Profile</Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <span className="w-full text-muted-foreground cursor-not-allowed">Dashboard (Disabled)</span>
+                <Link href="/dashboard" className="w-full">Dashboard</Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <span className="w-full text-muted-foreground cursor-not-allowed">Settings (Disabled)</span>
+                <Link href="/settings" className="w-full">Settings</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="cursor-pointer" disabled={isLoggingOut}>
@@ -123,20 +123,32 @@ const Header = () => {
           </div>
           <nav className="flex flex-col space-y-2">
             <Link 
-              href="/" 
+              href="/discover" 
               className={cn(
                 "px-3 py-2 rounded-md",
-                pathname === "/" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
+                pathname === "/discover" || pathname === "/" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
+              )}
+            >
+              Discover
+            </Link>
+            <Link 
+              href="/home" 
+              className={cn(
+                "px-3 py-2 rounded-md",
+                pathname === "/home" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
               )}
             >
               Home
             </Link>
-            <span className="px-3 py-2 rounded-md text-muted-foreground cursor-not-allowed">
-              Discover (Disabled)
-            </span>
-            <span className="px-3 py-2 rounded-md text-muted-foreground cursor-not-allowed">
-              Library (Disabled)
-            </span>
+            <Link 
+              href="/library" 
+              className={cn(
+                "px-3 py-2 rounded-md",
+                pathname === "/library" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
+              )}
+            >
+              Library
+            </Link>
             <button 
               onClick={handleLogout}
               disabled={isLoggingOut}

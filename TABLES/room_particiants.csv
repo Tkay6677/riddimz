@@ -1,0 +1,2 @@
+room_id,user_id,joined_at,role,is_muted,is_speaking,last_speak_at
+13f30e87-bc39-4fe9-ab8d-9e345b0a9a00,f0eddc26-5112-49c7-bbc2-fdf440e09550,2025-09-07 17:30:49.509766+00,participant,false,false,null

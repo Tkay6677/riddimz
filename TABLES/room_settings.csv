@@ -1,0 +1,2 @@
+room_id,enable_chat,enable_voice,enable_video,enable_screen_sharing,enable_lyrics,enable_scoring,min_score_to_join,created_at,updated_at
+13f30e87-bc39-4fe9-ab8d-9e345b0a9a00,true,true,false,false,true,true,0,2025-09-07 17:27:34.843472+00,2025-09-07 17:27:34.843472+00

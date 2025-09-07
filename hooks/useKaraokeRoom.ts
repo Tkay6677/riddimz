@@ -175,21 +175,38 @@ export function useKaraokeRoom() {
     // Load lyrics
     const loadLyrics = async () => {
       try {
-        const { data: lyricsData, error: lyricsError } = await supabase.storage
-          .from('karaoke-songs')
-          .download(room.lyrics_url!);
+        let lyricsText = '';
+        
+        // Check if lyrics_url contains actual lyrics content or is a file path
+        if (room.lyrics_url) {
+          if (room.lyrics_url.startsWith('[') || room.lyrics_url.includes('\n') || room.lyrics_url.includes('-->')) {
+            // This looks like actual lyrics content, use it directly
+            lyricsText = room.lyrics_url;
+          } else {
+            // This looks like a file path, try to download it
+            try {
+              const { data: lyricsData, error: lyricsError } = await supabase.storage
+                .from('karaoke-songs')
+                .download(room.lyrics_url);
 
-        if (lyricsError) throw lyricsError;
+              if (lyricsError) throw lyricsError;
+              lyricsText = await lyricsData.text();
+            } catch (downloadErr) {
+              console.warn('Failed to download lyrics file, treating as direct content:', downloadErr);
+              lyricsText = room.lyrics_url;
+            }
+          }
+        }
 
-        const text = await lyricsData.text();
-        if (!text) {
+        if (!lyricsText) {
           console.warn('No lyrics content found');
           return;
         }
 
-        const parsedLyrics = parseLyrics(text);
+        const parsedLyrics = parseLyrics(lyricsText);
         if (parsedLyrics.length > 0) {
           setLyrics(parsedLyrics);
+          console.log('Loaded lyrics:', parsedLyrics.length, 'lines');
         } else {
           console.warn('No valid lyrics found after parsing');
           setLyrics([]);

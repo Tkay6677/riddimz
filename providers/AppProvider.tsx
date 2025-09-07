@@ -3,6 +3,7 @@
 import { createContext, useContext, ReactNode, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { AudioProvider } from '@/contexts/AudioContext';
 
 type AppContextType = {
   auth: ReturnType<typeof useAuth>;
@@ -19,7 +20,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={value}>
-      {children}
+      <AudioProvider>
+        {children}
+      </AudioProvider>
     </AppContext.Provider>
   );
 }

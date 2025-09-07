@@ -1,0 +1,52 @@
+id,name,host_id,is_private,password,max_participants,current_track_id,status,created_at,updated_at,description,is_live,is_nft_only,song_url,lyrics_url,current_song_id,theme,language,difficulty_level,last_activity_at
+13f30e87-bc39-4fe9-ab8d-9e345b0a9a00,TEST,f0eddc26-5112-49c7-bbc2-fdf440e09550,false,null,10,53266864-f491-4bbf-a09d-a14d623f8a10,waiting,2025-09-07 17:27:34.843472+00,2025-09-07 17:27:34.843472+00,SO,true,false,https://kvzicstyhxgiyewfsbqw.supabase.co/storage/v1/object/public/karaoke-songs/f0eddc26-5112-49c7-bbc2-fdf440e09550/1757264090624_Instrumental-Hub-Ed-Sheeran-Perfect-Instrumental.mp3,"[id: spkzanui]
+[ar: Ed Sheeran]
+[ti: Perfect ]
+[00:00.00]
+[00:05.74]
+[00:06.81]Ed Sheeran - Perfect
+[00:07.34]
+[00:07.86]Lyric By Safta.rs
+[00:13.06]
+[00:15.69]I found a love for me
+[00:28.21]Darling just dive right in
+[00:31.34]And follow my lead
+[00:35.52]Well I found a girl beautiful and sweet 
+[00:42.84]I never knew you were the someone waiting for me
+[00:50.15]'Cause we were just kids when we fell in love
+[00:54.33]
+[00:54.85]Not knowing what it was
+[00:58.54]I will not give you up this time
+[01:05.82]But darling, just kiss me slow, your heart is all I own
+[01:14.18]And in your eyes you're holding mine
+[01:19.41]
+[01:20.45]Baby, I'm dancing in the dark with you between my arms
+[01:30.90]Barefoot on the grass, listening to our favorite song
+[01:38.74]When you said you looked a mess, I whispered underneath my breath
+[01:46.57]But you heard it, darling, you look perfect tonight
+[01:54.41]
+[01:59.14]Well I found a woman, stronger than anyone I know
+[02:06.74]She shares my dreams, I hope that someday I'll share her home
+[02:14.26]I found a love, to carry more than just my secrets
+[02:22.62]To carry love, to carry children of our own
+[02:28.37]We are still kids, but we're so in love
+[02:33.39]Fighting against all odds
+[02:37.28]I know we'll be alright this time
+[02:44.59]Darling, just hold my hand
+[02:48.22]Be my girl, I'll be your man
+[02:52.43]I see my future in your eyes
+[02:58.18]
+[02:58.70]Baby, I'm dancing in the dark, with you between my arms
+[03:09.64]Barefoot on the grass, listening to our favorite song
+[03:16.96]When I saw you in that dress, looking so beautiful
+[03:23.75]I don't deserve this, darling, you look perfect tonight
+[03:33.15]
+[03:44.15]Baby, I'm dancing in the dark, with you between my arms
+[03:55.12]Barefoot on the grass, listening to our favorite song
+[04:02.96]I have faith in what I see
+[04:06.09]Now I know I have met an angel in person
+[04:12.34]And she looks perfect
+[04:16.00]I don't deserve this
+[04:20.17]You look perfect tonight
+[04:28.53]Follow Ig @Safta.rs
+[04:35.33]",e2ce2136-7af1-4ee4-96b6-11142cf70008,,,intermediate,2025-09-07 17:27:34.843472+00

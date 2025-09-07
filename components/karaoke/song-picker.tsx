@@ -47,46 +47,79 @@ export default function SongPicker({ onSongSelect, selectedSongId }: SongPickerP
         // Load MongoDB songs
         const mongoSongs = await getTrendingSongs(100);
         
-        // Load Supabase uploaded songs
-        const { data: supabaseSongs, error } = await supabase
-          .from('songs')
+        // Load karaoke tracks from database with joined song data
+        const { data: karaokeData, error } = await supabase
+          .from('karaoke_tracks')
           .select(`
             id,
-            title,
-            artist,
-            duration,
-            audio_url,
-            cover_art_url,
-            lyrics_url,
-            is_karaoke,
-            user_id,
-            created_at
+            instrumental_url,
+            lyrics_data,
+            song:songs(
+              id,
+              title,
+              artist,
+              duration,
+              cover_url,
+              genre,
+              is_nft
+            )
           `)
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Error loading Supabase songs:', error);
+          console.error('Error loading karaoke tracks:', error);
         }
 
-        // Transform Supabase songs to match interface
-        const transformedSupabaseSongs = (supabaseSongs || []).map(song => ({
-          _id: song.id,
-          title: song.title,
-          artist: song.artist,
-          duration: song.duration,
-          audioUrl: song.audio_url,
-          lyricsUrl: song.lyrics_url,
-          coverUrl: song.cover_art_url,
-          is_karaoke: song.is_karaoke,
-          user_id: song.user_id
-        }));
+        // Transform karaoke tracks to match interface
+        const transformedKaraokeSongs = (karaokeData || []).map(track => {
+          if (!track.song) return null;
+          
+          const audioUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/karaoke-songs/${track.instrumental_url}`;
+          let lyricsText = '';
+          if (track.lyrics_data && track.lyrics_data.content) {
+            lyricsText = track.lyrics_data.content;
+          }
+
+          return {
+            _id: track.id,
+            id: track.id,
+            songId: (track as any).song.id, // Add the actual song table ID
+            title: (track as any).song.title,
+            artist: (track as any).song.artist,
+            duration: (track as any).song.duration,
+            audioUrl: audioUrl,
+            audio_url: audioUrl,
+            lyricsUrl: lyricsText,
+            lyrics_url: lyricsText,
+            coverUrl: (track as any).song.cover_url,
+            cover_url: (track as any).song.cover_url,
+            cover_art_url: (track as any).song.cover_url,
+            is_karaoke: true,
+            genre: (track as any).song.genre
+          };
+        }).filter(Boolean);
 
         // Combine both sources
-        const allSongs = [...mongoSongs, ...transformedSupabaseSongs];
+        const allSongs = [...mongoSongs, ...transformedKaraokeSongs];
         setSongs(allSongs);
         
-        const genresData = await getPopularGenres();
-        setGenres(genresData.map(g => g.genre));
+        // Extract genres from all songs (both MongoDB and karaoke tracks)
+        const allGenres = new Set<string>();
+        allSongs.forEach(song => {
+          if (song && song.genre) {
+            allGenres.add(song.genre);
+          }
+        });
+        
+        // Also get genres from MongoDB
+        try {
+          const genresData = await getPopularGenres();
+          genresData.forEach(g => allGenres.add(g.genre));
+        } catch (e) {
+          console.warn('Could not load MongoDB genres:', e);
+        }
+        
+        setGenres(Array.from(allGenres).sort());
       } catch (error) {
         console.error('Error loading songs:', error);
       }
@@ -206,9 +239,21 @@ export default function SongPicker({ onSongSelect, selectedSongId }: SongPickerP
                       
                       {(song.coverUrl || song.cover_url || song.cover_art_url) && (
                         <img
-                          src={song.coverUrl || song.cover_url || song.cover_art_url}
+                          src={
+                            song.coverUrl?.startsWith('http') 
+                              ? song.coverUrl 
+                              : song.cover_url?.startsWith('http')
+                              ? song.cover_url
+                              : song.cover_art_url?.startsWith('http')
+                              ? song.cover_art_url
+                              : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/karaoke-songs/${song.coverUrl || song.cover_url || song.cover_art_url}`
+                          }
                           alt={`${song.title} cover`}
                           className="w-12 h-12 rounded-md object-cover ml-4 flex-shrink-0"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
                         />
                       )}
                     </div>

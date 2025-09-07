@@ -966,9 +966,21 @@ export default function KaraokeRoom() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => {
-                    stopStreaming()
-                    router.push('/karaoke')
+                  onClick={async () => {
+                    try {
+                      await stopStreaming()
+                      if (room?.id) {
+                        await leaveRoom(room.id)
+                      }
+                      router.push('/karaoke')
+                    } catch (error) {
+                      console.error('Error ending stream:', error)
+                      toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: "Failed to end stream properly"
+                      })
+                    }
                   }}
                 >
                   End Stream

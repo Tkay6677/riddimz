@@ -281,8 +281,23 @@ export function MusicGrid({ limit = 8, filter }: MusicGridProps) {
 
       if (error) throw error
 
+      // Filter out karaoke songs (songs that have associated karaoke tracks)
+      let filteredData = data || []
       if (data) {
-        setTracks(data)
+        const { data: karaokeTrackIds } = await supabase
+          .from('karaoke_tracks')
+          .select('song_id')
+        
+        const karaokeTrackSongIds = new Set(karaokeTrackIds?.map(track => track.song_id) || [])
+        filteredData = data.filter(song => !karaokeTrackSongIds.has(song.id))
+      }
+
+      const { data: finalData, error: finalError } = { data: filteredData, error }
+
+      if (error) throw error
+
+      if (finalData) {
+        setTracks(finalData)
       }
     } catch (error) {
       console.error('Error loading tracks:', error)
