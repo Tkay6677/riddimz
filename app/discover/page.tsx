@@ -586,12 +586,14 @@ export default function DiscoverPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="trending">
-        <TabsList className="w-full justify-start">
-          <TabsTrigger value="trending">Trending</TabsTrigger>
-          <TabsTrigger value="new">New Releases</TabsTrigger>
-          <TabsTrigger value="artists">Artists</TabsTrigger>
-          <TabsTrigger value="genres">Genres</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="inline-flex w-max min-w-full">
+            <TabsTrigger value="trending" className="whitespace-nowrap">Trending</TabsTrigger>
+            <TabsTrigger value="new" className="whitespace-nowrap">New Releases</TabsTrigger>
+            <TabsTrigger value="artists" className="whitespace-nowrap">Artists</TabsTrigger>
+            <TabsTrigger value="genres" className="whitespace-nowrap">Genres</TabsTrigger>
+          </TabsList>
+        </div>
         
         {/* Trending Songs Tab */}
         <TabsContent value="trending" className="mt-6">

@@ -584,8 +584,8 @@ export default function DashboardPage() {
 
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="grid gap-6">
+    <div className="w-full max-w-none px-4 py-4 sm:py-8 sm:max-w-7xl sm:mx-auto">
+      <div className="grid gap-4 sm:gap-6">
         {/* User Profile Card */}
         <Card>
           <CardHeader>
@@ -612,20 +612,20 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold">{songs.length}</div>
-                <div className="text-sm text-muted-foreground">Songs</div>
+                <div className="text-lg sm:text-2xl font-bold">{songs.length}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Songs</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{rooms.length}</div>
-                <div className="text-sm text-muted-foreground">Rooms</div>
+                <div className="text-lg sm:text-2xl font-bold">{rooms.length}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Rooms</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">
+                <div className="text-lg sm:text-2xl font-bold">
                   {rooms.reduce((acc, room) => acc + room.participants_count, 0)}
                 </div>
-                <div className="text-sm text-muted-foreground">Total Participants</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Total Participants</div>
               </div>
             </div>
           </CardContent>
@@ -633,41 +633,43 @@ export default function DashboardPage() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="songs" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="songs">
-              <Music className="h-4 w-4 mr-2" />
-              My Songs
-            </TabsTrigger>
-            <TabsTrigger value="karaoke">
-              <Mic className="h-4 w-4 mr-2" />
-              Karaoke Tracks
-            </TabsTrigger>
-            <TabsTrigger value="rooms">
-              <Users className="h-4 w-4 mr-2" />
-              My Rooms
-            </TabsTrigger>
-            <TabsTrigger value="upload">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Song
-            </TabsTrigger>
-            <TabsTrigger value="upload-karaoke">
-              <FileAudio className="h-4 w-4 mr-2" />
-              Upload Karaoke
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto">
+            <TabsList className="inline-flex w-max min-w-full">
+              <TabsTrigger value="songs" className="whitespace-nowrap">
+                <Music className="h-4 w-4 mr-2" />
+                My Songs
+              </TabsTrigger>
+              <TabsTrigger value="karaoke" className="whitespace-nowrap">
+                <Mic className="h-4 w-4 mr-2" />
+                Karaoke Tracks
+              </TabsTrigger>
+              <TabsTrigger value="rooms" className="whitespace-nowrap">
+                <Users className="h-4 w-4 mr-2" />
+                My Rooms
+              </TabsTrigger>
+              <TabsTrigger value="upload" className="whitespace-nowrap">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Song
+              </TabsTrigger>
+              <TabsTrigger value="upload-karaoke" className="whitespace-nowrap">
+                <FileAudio className="h-4 w-4 mr-2" />
+                Upload Karaoke
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Songs Tab */}
           <TabsContent value="songs">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                   <div>
                     <CardTitle>My Songs</CardTitle>
                     <CardDescription>Manage your uploaded songs</CardDescription>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-2">
                     <Select value={filter} onValueChange={(value) => setFilter(value as FilterType)}>
-                      <SelectTrigger className="w-[180px]">
+                      <SelectTrigger className="w-full sm:w-[180px]">
                         <SelectValue placeholder="Filter songs" />
                       </SelectTrigger>
                       <SelectContent>
@@ -680,7 +682,7 @@ export default function DashboardPage() {
                     </Select>
                     {filter === 'genre' && (
                       <Select value={selectedGenre} onValueChange={setSelectedGenre}>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[180px]">
                           <SelectValue placeholder="Select genre" />
                         </SelectTrigger>
                         <SelectContent>
@@ -697,21 +699,21 @@ export default function DashboardPage() {
                 <ScrollArea className="h-[400px]">
                   <div className="space-y-4">
                     {songs.map((song) => (
-                      <div key={song.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div key={song.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg space-y-3 sm:space-y-0">
                         <div className="flex items-center space-x-4">
                           {song.cover_url ? (
                             <img 
                               src={song.cover_url}
                               alt={song.title}
-                              className="h-12 w-12 rounded-md object-cover"
+                              className="h-12 w-12 rounded-md object-cover flex-shrink-0"
                             />
                           ) : (
-                            <FileAudio className="h-12 w-12 text-primary" />
+                            <FileAudio className="h-12 w-12 text-primary flex-shrink-0" />
                           )}
-                          <div>
-                            <div className="font-medium">{song.title}</div>
-                            <div className="text-sm text-muted-foreground">{song.artist}</div>
-                            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium truncate">{song.title}</div>
+                            <div className="text-sm text-muted-foreground truncate">{song.artist}</div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               {song.genre && <span>{song.genre}</span>}
                               {song.is_nft && <Sparkles className="h-3 w-3" />}
                               <span>{song.play_count} plays</span>
@@ -719,7 +721,7 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-end space-x-2">
                           <Button variant="ghost" size="icon" onClick={() => router.push(`/karaoke/create?song=${song.id}`)}>
                             <PlayCircle className="h-4 w-4" />
                           </Button>
@@ -739,12 +741,12 @@ export default function DashboardPage() {
           <TabsContent value="karaoke">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                   <div>
                     <CardTitle>My Karaoke Tracks</CardTitle>
                     <CardDescription>Manage your uploaded karaoke tracks</CardDescription>
                   </div>
-                  <Button onClick={() => (document.querySelector('[value="upload-karaoke"]') as HTMLElement)?.click()}>
+                  <Button onClick={() => (document.querySelector('[value="upload-karaoke"]') as HTMLElement)?.click()} className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
                     Upload Karaoke Track
                   </Button>
@@ -754,24 +756,24 @@ export default function DashboardPage() {
                 <ScrollArea className="h-[400px]">
                   <div className="space-y-4">
                     {karaokeTracks.map((track) => (
-                      <div key={track.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div key={track.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg space-y-3 sm:space-y-0">
                         <div className="flex items-center space-x-4">
                           {track.song.cover_url ? (
                             <img 
                               src={track.song.cover_url}
                               alt={track.song.title}
-                              className="h-12 w-12 rounded-md object-cover"
+                              className="h-12 w-12 rounded-md object-cover flex-shrink-0"
                             />
                           ) : (
-                            <Mic className="h-12 w-12 text-primary" />
+                            <Mic className="h-12 w-12 text-primary flex-shrink-0" />
                           )}
-                          <div>
-                            <div className="font-medium flex items-center gap-2">
-                              {track.song.title}
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium flex flex-wrap items-center gap-2">
+                              <span className="truncate">{track.song.title}</span>
                               <Badge variant="secondary" className="text-xs">Karaoke</Badge>
                             </div>
-                            <div className="text-sm text-muted-foreground">{track.song.artist}</div>
-                            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                            <div className="text-sm text-muted-foreground truncate">{track.song.artist}</div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               {track.song.genre && <span>{track.song.genre}</span>}
                               {track.song.is_nft && <Sparkles className="h-3 w-3" />}
                               {track.lyrics_data && <FileText className="h-3 w-3" />}
@@ -780,7 +782,7 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-end space-x-2">
                           <Button variant="ghost" size="icon" onClick={() => router.push(`/karaoke/create?track=${track.id}`)}>
                             <PlayCircle className="h-4 w-4" />
                           </Button>
@@ -807,12 +809,12 @@ export default function DashboardPage() {
           <TabsContent value="rooms">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                   <div>
                     <CardTitle>My Rooms</CardTitle>
                     <CardDescription>View and manage your karaoke rooms</CardDescription>
                   </div>
-                  <Button onClick={() => router.push('/karaoke/create')}>
+                  <Button onClick={() => router.push('/karaoke/create')} className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
                     Create Room
                   </Button>
@@ -822,17 +824,17 @@ export default function DashboardPage() {
                 <ScrollArea className="h-[400px]">
                   <div className="space-y-4">
                     {rooms.map((room) => (
-                      <div key={room.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div key={room.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg space-y-3 sm:space-y-0">
                         <div className="flex items-center space-x-4">
-                          <Mic className="h-8 w-8 text-primary" />
-                          <div>
-                            <div className="font-medium">{room.name}</div>
+                          <Mic className="h-8 w-8 text-primary flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium truncate">{room.name}</div>
                             <div className="text-sm text-muted-foreground">
                               Created {new Date(room.created_at).toLocaleDateString()}
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-end space-x-2">
                           <div className="flex items-center text-sm text-muted-foreground">
                             <Users className="h-4 w-4 mr-1" />
                             {room.participants_count}
@@ -890,7 +892,7 @@ export default function DashboardPage() {
             ) : (
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                     <div>
                       <CardTitle>Upload Song</CardTitle>
                       <CardDescription>Add a new song to your collection</CardDescription>
@@ -899,6 +901,7 @@ export default function DashboardPage() {
                       variant="outline" 
                       size="sm"
                       onClick={() => setUploadPasswordVerified(false)}
+                      className="w-full sm:w-auto"
                     >
                       <Lock className="mr-2 h-4 w-4" />
                       Lock
@@ -907,7 +910,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                 <div className="space-y-4">
-                  <div className="grid gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <div className="grid gap-2">
                       <Label htmlFor="title">Song Title</Label>
                       <Input
@@ -1031,7 +1034,7 @@ export default function DashboardPage() {
             ) : (
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                     <div>
                       <CardTitle>Upload Karaoke Track</CardTitle>
                       <CardDescription>Add a new karaoke track with instrumental and lyrics</CardDescription>
@@ -1040,6 +1043,7 @@ export default function DashboardPage() {
                       variant="outline" 
                       size="sm"
                       onClick={() => setUploadPasswordVerified(false)}
+                      className="w-full sm:w-auto"
                     >
                       <Lock className="mr-2 h-4 w-4" />
                       Lock
@@ -1048,7 +1052,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                 <div className="space-y-4">
-                  <div className="grid gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <div className="grid gap-2">
                       <Label htmlFor="karaoke-title">Song Title</Label>
                       <Input
