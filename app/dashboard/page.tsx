@@ -589,22 +589,22 @@ export default function DashboardPage() {
         {/* User Profile Card */}
         <Card>
           <CardHeader>
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
+            <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <Avatar className="h-12 w-12 sm:h-16 sm:w-16 flex-shrink-0">
                   <AvatarImage src={profile?.avatar_url} />
                   <AvatarFallback>{profile?.username?.slice(0, 2)}</AvatarFallback>
                 </Avatar>
-                <div>
-                  <div className="text-xl font-semibold">{profile?.username}</div>
-                  <div className="text-sm text-muted-foreground">{profile?.email}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-lg sm:text-xl font-semibold truncate">{profile?.username}</div>
+                  <div className="text-sm text-muted-foreground truncate">{profile?.email}</div>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full sm:w-auto">
                 <Button variant="outline" onClick={async () => {
                   await Promise.all([loadSongs(), loadRooms()]);
                   toast({ title: 'Dashboard refreshed!' });
-                }}>
+                }} className="flex-1 sm:flex-none">
                   Refresh
                 </Button>
                 {/* Settings, Edit, etc. buttons here */}
@@ -612,20 +612,20 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
-              <div>
-                <div className="text-lg sm:text-2xl font-bold">{songs.length}</div>
+            <div className="grid grid-cols-3 gap-1 sm:gap-4 text-center">
+              <div className="p-2">
+                <div className="text-base sm:text-2xl font-bold">{songs.length}</div>
                 <div className="text-xs sm:text-sm text-muted-foreground">Songs</div>
               </div>
-              <div>
-                <div className="text-lg sm:text-2xl font-bold">{rooms.length}</div>
+              <div className="p-2">
+                <div className="text-base sm:text-2xl font-bold">{rooms.length}</div>
                 <div className="text-xs sm:text-sm text-muted-foreground">Rooms</div>
               </div>
-              <div>
-                <div className="text-lg sm:text-2xl font-bold">
+              <div className="p-2">
+                <div className="text-base sm:text-2xl font-bold">
                   {rooms.reduce((acc, room) => acc + room.participants_count, 0)}
                 </div>
-                <div className="text-xs sm:text-sm text-muted-foreground">Total Participants</div>
+                <div className="text-xs sm:text-sm text-muted-foreground leading-tight">Participants</div>
               </div>
             </div>
           </CardContent>
@@ -696,36 +696,36 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[400px]">
-                  <div className="space-y-4">
+                <ScrollArea className="h-[300px] sm:h-[400px]">
+                  <div className="space-y-3 sm:space-y-4">
                     {songs.map((song) => (
-                      <div key={song.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg space-y-3 sm:space-y-0">
-                        <div className="flex items-center space-x-4">
+                      <div key={song.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg space-y-3 sm:space-y-0">
+                        <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
                           {song.cover_url ? (
                             <img 
                               src={song.cover_url}
                               alt={song.title}
-                              className="h-12 w-12 rounded-md object-cover flex-shrink-0"
+                              className="h-10 w-10 sm:h-12 sm:w-12 rounded-md object-cover flex-shrink-0"
                             />
                           ) : (
-                            <FileAudio className="h-12 w-12 text-primary flex-shrink-0" />
+                            <FileAudio className="h-10 w-10 sm:h-12 sm:w-12 text-primary flex-shrink-0" />
                           )}
                           <div className="min-w-0 flex-1">
-                            <div className="font-medium truncate">{song.title}</div>
-                            <div className="text-sm text-muted-foreground truncate">{song.artist}</div>
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                              {song.genre && <span>{song.genre}</span>}
-                              {song.is_nft && <Sparkles className="h-3 w-3" />}
+                            <div className="font-medium truncate text-sm sm:text-base">{song.title}</div>
+                            <div className="text-xs sm:text-sm text-muted-foreground truncate">{song.artist}</div>
+                            <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs text-muted-foreground">
+                              {song.genre && <span className="truncate">{song.genre}</span>}
+                              {song.is_nft && <Sparkles className="h-3 w-3 flex-shrink-0" />}
                               <span>{song.play_count} plays</span>
                               <span>{song.likes_count} likes</span>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center justify-end space-x-2">
-                          <Button variant="ghost" size="icon" onClick={() => router.push(`/karaoke/create?song=${song.id}`)}>
+                        <div className="flex items-center justify-end space-x-1 sm:space-x-2 flex-shrink-0">
+                          <Button variant="ghost" size="sm" onClick={() => router.push(`/karaoke/create?song=${song.id}`)}>
                             <PlayCircle className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteSong(song.id)}>
+                          <Button variant="ghost" size="sm" onClick={() => deleteSong(song.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -753,40 +753,40 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[400px]">
-                  <div className="space-y-4">
+                <ScrollArea className="h-[300px] sm:h-[400px]">
+                  <div className="space-y-3 sm:space-y-4">
                     {karaokeTracks.map((track) => (
-                      <div key={track.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg space-y-3 sm:space-y-0">
-                        <div className="flex items-center space-x-4">
+                      <div key={track.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg space-y-3 sm:space-y-0">
+                        <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
                           {track.song.cover_url ? (
                             <img 
                               src={track.song.cover_url}
                               alt={track.song.title}
-                              className="h-12 w-12 rounded-md object-cover flex-shrink-0"
+                              className="h-10 w-10 sm:h-12 sm:w-12 rounded-md object-cover flex-shrink-0"
                             />
                           ) : (
-                            <Mic className="h-12 w-12 text-primary flex-shrink-0" />
+                            <Mic className="h-10 w-10 sm:h-12 sm:w-12 text-primary flex-shrink-0" />
                           )}
                           <div className="min-w-0 flex-1">
                             <div className="font-medium flex flex-wrap items-center gap-2">
-                              <span className="truncate">{track.song.title}</span>
-                              <Badge variant="secondary" className="text-xs">Karaoke</Badge>
+                              <span className="truncate text-sm sm:text-base">{track.song.title}</span>
+                              <Badge variant="secondary" className="text-xs flex-shrink-0">Karaoke</Badge>
                             </div>
-                            <div className="text-sm text-muted-foreground truncate">{track.song.artist}</div>
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                              {track.song.genre && <span>{track.song.genre}</span>}
-                              {track.song.is_nft && <Sparkles className="h-3 w-3" />}
-                              {track.lyrics_data && <FileText className="h-3 w-3" />}
+                            <div className="text-xs sm:text-sm text-muted-foreground truncate">{track.song.artist}</div>
+                            <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs text-muted-foreground">
+                              {track.song.genre && <span className="truncate">{track.song.genre}</span>}
+                              {track.song.is_nft && <Sparkles className="h-3 w-3 flex-shrink-0" />}
+                              {track.lyrics_data && <FileText className="h-3 w-3 flex-shrink-0" />}
                               <span>{track.song.play_count} plays</span>
                               <span>{track.song.likes_count} likes</span>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center justify-end space-x-2">
-                          <Button variant="ghost" size="icon" onClick={() => router.push(`/karaoke/create?track=${track.id}`)}>
+                        <div className="flex items-center justify-end space-x-1 sm:space-x-2 flex-shrink-0">
+                          <Button variant="ghost" size="sm" onClick={() => router.push(`/karaoke/create?track=${track.id}`)}>
                             <PlayCircle className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteSong(track.song_id)}>
+                          <Button variant="ghost" size="sm" onClick={() => deleteSong(track.song_id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -821,25 +821,25 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[400px]">
-                  <div className="space-y-4">
+                <ScrollArea className="h-[300px] sm:h-[400px]">
+                  <div className="space-y-3 sm:space-y-4">
                     {rooms.map((room) => (
-                      <div key={room.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg space-y-3 sm:space-y-0">
-                        <div className="flex items-center space-x-4">
-                          <Mic className="h-8 w-8 text-primary flex-shrink-0" />
+                      <div key={room.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg space-y-3 sm:space-y-0">
+                        <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
+                          <Mic className="h-6 w-6 sm:h-8 sm:w-8 text-primary flex-shrink-0" />
                           <div className="min-w-0 flex-1">
-                            <div className="font-medium truncate">{room.name}</div>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="font-medium truncate text-sm sm:text-base">{room.name}</div>
+                            <div className="text-xs sm:text-sm text-muted-foreground">
                               Created {new Date(room.created_at).toLocaleDateString()}
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center justify-end space-x-2">
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <Users className="h-4 w-4 mr-1" />
+                        <div className="flex items-center justify-end space-x-2 flex-shrink-0">
+                          <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
+                            <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                             {room.participants_count}
                           </div>
-                          <Button variant="ghost" size="icon" onClick={() => router.push(`/karaoke/${room.id}`)}>
+                          <Button variant="ghost" size="sm" onClick={() => router.push(`/karaoke/${room.id}`)}>
                             <PlayCircle className="h-4 w-4" />
                           </Button>
                         </div>
@@ -911,7 +911,7 @@ export default function DashboardPage() {
                 <CardContent>
                 <div className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="grid gap-2">
+                    <div className="grid gap-2 sm:col-span-1">
                       <Label htmlFor="title">Song Title</Label>
                       <Input
                         id="title"
@@ -920,7 +920,7 @@ export default function DashboardPage() {
                         placeholder="Enter song title"
                       />
                     </div>
-                    <div className="grid gap-2">
+                    <div className="grid gap-2 sm:col-span-1">
                       <Label htmlFor="artist">Artist</Label>
                       <Input
                         id="artist"
@@ -929,7 +929,7 @@ export default function DashboardPage() {
                         placeholder="Enter artist name"
                       />
                     </div>
-                    <div className="grid gap-2">
+                    <div className="grid gap-2 sm:col-span-1">
                       <Label htmlFor="genre">Genre</Label>
                       <Select value={genre} onValueChange={setGenre}>
                         <SelectTrigger>
@@ -942,7 +942,7 @@ export default function DashboardPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="grid gap-2">
+                    <div className="grid gap-2 sm:col-span-1">
                       <Label htmlFor="song">Song File (MP3)</Label>
                       <Input
                         id="song"
@@ -951,7 +951,7 @@ export default function DashboardPage() {
                         onChange={(e) => setSongFile(e.target.files?.[0] || null)}
                       />
                     </div>
-                    <div className="grid gap-2">
+                    <div className="grid gap-2 sm:col-span-1">
                       <Label htmlFor="lyrics">Lyrics File (LRC) - Optional</Label>
                       <Input
                         id="lyrics"
@@ -960,7 +960,7 @@ export default function DashboardPage() {
                         onChange={(e) => setLyricsFile(e.target.files?.[0] || null)}
                       />
                     </div>
-                    <div className="grid gap-2">
+                    <div className="grid gap-2 sm:col-span-1">
                       <Label htmlFor="image">Cover Image - Optional</Label>
                       <Input
                         id="image"
@@ -969,7 +969,7 @@ export default function DashboardPage() {
                         onChange={(e) => setImageFile(e.target.files?.[0] || null)}
                       />
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 sm:col-span-2">
                       <input
                         type="checkbox"
                         id="isNft"
