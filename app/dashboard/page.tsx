@@ -17,7 +17,7 @@ import {
   Music, Mic, Upload, Users, Clock, Heart, 
   PlayCircle, Plus, Trash2, Edit2, Settings,
   FileAudio, FileText, Star, Award, TrendingUp,
-  Filter, Sparkles
+  Filter, Sparkles, Lock
 } from 'lucide-react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useToast } from '@/components/ui/use-toast';
@@ -90,6 +90,11 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [selectedGenre, setSelectedGenre] = useState<string>('');
   
+  // Password protection states
+  const [uploadPasswordVerified, setUploadPasswordVerified] = useState(false);
+  const [uploadPasswordInput, setUploadPasswordInput] = useState('');
+  const [uploadPasswordError, setUploadPasswordError] = useState('');
+  
   // Karaoke track upload states
   const [karaokeUploading, setKaraokeUploading] = useState(false);
   const [karaokeInstrumentalFile, setKaraokeInstrumentalFile] = useState<File | null>(null);
@@ -99,6 +104,21 @@ export default function DashboardPage() {
   const [karaokeArtist, setKaraokeArtist] = useState('');
   const [karaokeGenre, setKaraokeGenre] = useState<string>('');
   const [karaokeIsNft, setKaraokeIsNft] = useState(false);
+
+  // Upload password - in production, this should be stored securely
+  const UPLOAD_PASSWORD = "riddimz2024";
+
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const handleUploadPasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (uploadPasswordInput === UPLOAD_PASSWORD) {
+      setUploadPasswordVerified(true);
+      setUploadPasswordError('');
+    } else {
+      setUploadPasswordError('Incorrect password. Please try again.');
+    }
+  };
 
   // SSR-safe: set initial to true, update in useEffect
   const [isVisible, setIsVisible] = useState(true);
@@ -831,12 +851,61 @@ export default function DashboardPage() {
 
           {/* Upload Tab */}
           <TabsContent value="upload">
-            <Card>
-              <CardHeader>
-                <CardTitle>Upload Song</CardTitle>
-                <CardDescription>Add a new song to your collection</CardDescription>
-              </CardHeader>
-              <CardContent>
+            {!uploadPasswordVerified ? (
+              <Card>
+                <CardHeader className="text-center">
+                  <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                    <Lock className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle>Upload Access Required</CardTitle>
+                  <CardDescription>
+                    Enter the upload password to access song upload functionality
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleUploadPasswordSubmit} className="space-y-4">
+                    <div>
+                      <Label htmlFor="upload-password">Upload Password</Label>
+                      <Input
+                        id="upload-password"
+                        type="password"
+                        value={uploadPasswordInput}
+                        onChange={(e) => setUploadPasswordInput(e.target.value)}
+                        placeholder="Enter password"
+                        required
+                      />
+                    </div>
+                    
+                    {uploadPasswordError && (
+                      <div className="text-sm text-red-500">{uploadPasswordError}</div>
+                    )}
+                    
+                    <Button type="submit" className="w-full">
+                      <Lock className="mr-2 h-4 w-4" />
+                      Verify Access
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Upload Song</CardTitle>
+                      <CardDescription>Add a new song to your collection</CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setUploadPasswordVerified(false)}
+                    >
+                      <Lock className="mr-2 h-4 w-4" />
+                      Lock
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
                 <div className="space-y-4">
                   <div className="grid gap-4">
                     <div className="grid gap-2">
@@ -918,16 +987,66 @@ export default function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
+            )}
           </TabsContent>
 
           {/* Upload Karaoke Tab */}
           <TabsContent value="upload-karaoke">
-            <Card>
-              <CardHeader>
-                <CardTitle>Upload Karaoke Track</CardTitle>
-                <CardDescription>Add a new karaoke track with instrumental and lyrics</CardDescription>
-              </CardHeader>
-              <CardContent>
+            {!uploadPasswordVerified ? (
+              <Card>
+                <CardHeader className="text-center">
+                  <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                    <Lock className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle>Upload Access Required</CardTitle>
+                  <CardDescription>
+                    Enter the upload password to access karaoke upload functionality
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleUploadPasswordSubmit} className="space-y-4">
+                    <div>
+                      <Label htmlFor="karaoke-password">Upload Password</Label>
+                      <Input
+                        id="karaoke-password"
+                        type="password"
+                        value={uploadPasswordInput}
+                        onChange={(e) => setUploadPasswordInput(e.target.value)}
+                        placeholder="Enter password"
+                        required
+                      />
+                    </div>
+                    
+                    {uploadPasswordError && (
+                      <div className="text-sm text-red-500">{uploadPasswordError}</div>
+                    )}
+                    
+                    <Button type="submit" className="w-full">
+                      <Lock className="mr-2 h-4 w-4" />
+                      Verify Access
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Upload Karaoke Track</CardTitle>
+                      <CardDescription>Add a new karaoke track with instrumental and lyrics</CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setUploadPasswordVerified(false)}
+                    >
+                      <Lock className="mr-2 h-4 w-4" />
+                      Lock
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
                 <div className="space-y-4">
                   <div className="grid gap-4">
                     <div className="grid gap-2">
@@ -1016,6 +1135,7 @@ export default function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>

@@ -7,14 +7,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Music, Mic, Upload } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Music, Mic, Upload, Lock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic'
 
+// Upload password - in production, this should be stored securely
+const UPLOAD_PASSWORD = "riddimz2024";
+
 export default function UploadPage() {
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
+  const [passwordVerified, setPasswordVerified] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [songData, setSongData] = useState({
     title: '',
     artist: '',
@@ -23,6 +30,16 @@ export default function UploadPage() {
     lyricsFile: null as File | null,
     isKaraoke: false,
   });
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === UPLOAD_PASSWORD) {
+      setPasswordVerified(true);
+      setPasswordError('');
+    } else {
+      setPasswordError('Incorrect password. Please try again.');
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'audio' | 'cover' | 'lyrics') => {
     if (e.target.files && e.target.files[0]) {
@@ -175,8 +192,70 @@ export default function UploadPage() {
     }
   };
 
+  // Show password form if not verified
+  if (!passwordVerified) {
+    return (
+      <div className="container max-w-md py-8 mx-auto">
+        <Card>
+          <CardHeader className="text-center">
+            <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+              <Lock className="h-6 w-6 text-primary" />
+            </div>
+            <CardTitle>Access Required</CardTitle>
+            <CardDescription>
+              Enter the upload password to access music upload functionality
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="password">Upload Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  placeholder="Enter password"
+                  required
+                />
+              </div>
+              
+              {passwordError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{passwordError}</AlertDescription>
+                </Alert>
+              )}
+              
+              <Button type="submit" className="w-full">
+                <Lock className="mr-2 h-4 w-4" />
+                Verify Access
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container max-w-4xl py-8">
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Upload Music</h1>
+            <p className="text-muted-foreground">Share your music with the community</p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setPasswordVerified(false)}
+          >
+            <Lock className="mr-2 h-4 w-4" />
+            Lock
+          </Button>
+        </div>
+      </div>
+      
       <Tabs defaultValue="music">
         <TabsList className="grid w-full grid-cols-2 mb-8">
           <TabsTrigger value="music" className="flex items-center gap-2">
