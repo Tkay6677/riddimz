@@ -796,7 +796,7 @@ export default function DiscoverPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Weekly Picks */}
+      {/* Weekly Picks 
       <section className="mt-12">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-semibold flex items-center">
@@ -831,7 +831,7 @@ export default function DiscoverPage() {
             </div>
           </div>
         </Card>
-      </section>
+      </section> */}
     </div>
   )
 }
