@@ -532,7 +532,6 @@ export default function LibraryPage() {
             <TabsTrigger value="favorites" className="whitespace-nowrap">Liked Songs</TabsTrigger>
             <TabsTrigger value="uploaded" className="whitespace-nowrap">Your Uploads</TabsTrigger>
             <TabsTrigger value="recent" className="whitespace-nowrap">Recently Played</TabsTrigger>
-            <TabsTrigger value="all" className="whitespace-nowrap">All Songs</TabsTrigger>
           </TabsList>
         </div>
         
