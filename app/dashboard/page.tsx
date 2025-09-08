@@ -584,76 +584,73 @@ export default function DashboardPage() {
 
 
   return (
-    <div className="w-full max-w-none px-4 py-4 sm:py-8 sm:max-w-7xl sm:mx-auto">
-      <div className="grid gap-4 sm:gap-6">
+    <div className="min-h-screen w-full px-3 py-4 sm:px-6 sm:py-8">
+      <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6">
         {/* User Profile Card */}
         <Card>
           <CardHeader>
-            <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-              <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3 min-w-0">
                 <Avatar className="h-12 w-12 sm:h-16 sm:w-16 flex-shrink-0">
                   <AvatarImage src={profile?.avatar_url} />
                   <AvatarFallback>{profile?.username?.slice(0, 2)}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <div className="text-lg sm:text-xl font-semibold truncate">{profile?.username}</div>
+                  <div className="text-base sm:text-xl font-semibold truncate">{profile?.username}</div>
                   <div className="text-sm text-muted-foreground truncate">{profile?.email}</div>
                 </div>
               </div>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <Button variant="outline" onClick={async () => {
-                  await Promise.all([loadSongs(), loadRooms()]);
-                  toast({ title: 'Dashboard refreshed!' });
-                }} className="flex-1 sm:flex-none">
-                  Refresh
-                </Button>
-                {/* Settings, Edit, etc. buttons here */}
-              </div>
+              <Button variant="outline" onClick={async () => {
+                await Promise.all([loadSongs(), loadRooms()]);
+                toast({ title: 'Dashboard refreshed!' });
+              }} className="w-full sm:w-auto">
+                Refresh
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-1 sm:gap-4 text-center">
-              <div className="p-2">
-                <div className="text-base sm:text-2xl font-bold">{songs.length}</div>
+            <div className="grid grid-cols-3 gap-2 sm:gap-6 text-center">
+              <div className="p-2 sm:p-4">
+                <div className="text-lg sm:text-2xl font-bold">{songs.length}</div>
                 <div className="text-xs sm:text-sm text-muted-foreground">Songs</div>
               </div>
-              <div className="p-2">
-                <div className="text-base sm:text-2xl font-bold">{rooms.length}</div>
+              <div className="p-2 sm:p-4">
+                <div className="text-lg sm:text-2xl font-bold">{rooms.length}</div>
                 <div className="text-xs sm:text-sm text-muted-foreground">Rooms</div>
               </div>
-              <div className="p-2">
-                <div className="text-base sm:text-2xl font-bold">
+              <div className="p-2 sm:p-4">
+                <div className="text-lg sm:text-2xl font-bold">
                   {rooms.reduce((acc, room) => acc + room.participants_count, 0)}
                 </div>
-                <div className="text-xs sm:text-sm text-muted-foreground leading-tight">Participants</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Users</div>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="songs" className="space-y-4">
-          <div className="overflow-x-auto">
-            <TabsList className="inline-flex w-max min-w-full">
-              <TabsTrigger value="songs" className="whitespace-nowrap">
-                <Music className="h-4 w-4 mr-2" />
-                My Songs
+        <Tabs defaultValue="songs" className="w-full">
+          <div className="w-full overflow-x-auto">
+            <TabsList className="flex w-max min-w-full">
+              <TabsTrigger value="songs" className="flex-shrink-0 whitespace-nowrap text-xs sm:text-sm">
+                <Music className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">My </span>Songs
               </TabsTrigger>
-              <TabsTrigger value="karaoke" className="whitespace-nowrap">
-                <Mic className="h-4 w-4 mr-2" />
-                Karaoke Tracks
+              <TabsTrigger value="karaoke" className="flex-shrink-0 whitespace-nowrap text-xs sm:text-sm">
+                <Mic className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Karaoke
               </TabsTrigger>
-              <TabsTrigger value="rooms" className="whitespace-nowrap">
-                <Users className="h-4 w-4 mr-2" />
-                My Rooms
+              <TabsTrigger value="rooms" className="flex-shrink-0 whitespace-nowrap text-xs sm:text-sm">
+                <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">My </span>Rooms
               </TabsTrigger>
-              <TabsTrigger value="upload" className="whitespace-nowrap">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Song
+              <TabsTrigger value="upload" className="flex-shrink-0 whitespace-nowrap text-xs sm:text-sm">
+                <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Upload
               </TabsTrigger>
-              <TabsTrigger value="upload-karaoke" className="whitespace-nowrap">
-                <FileAudio className="h-4 w-4 mr-2" />
-                Upload Karaoke
+              <TabsTrigger value="upload-karaoke" className="flex-shrink-0 whitespace-nowrap text-xs sm:text-sm">
+                <FileAudio className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                K-Upload
               </TabsTrigger>
             </TabsList>
           </div>
@@ -662,15 +659,15 @@ export default function DashboardPage() {
           <TabsContent value="songs">
             <Card>
               <CardHeader>
-                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <CardTitle>My Songs</CardTitle>
-                    <CardDescription>Manage your uploaded songs</CardDescription>
+                    <CardTitle className="text-lg sm:text-xl">My Songs</CardTitle>
+                    <CardDescription className="text-sm">Manage your uploaded songs</CardDescription>
                   </div>
                   <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-2">
                     <Select value={filter} onValueChange={(value) => setFilter(value as FilterType)}>
-                      <SelectTrigger className="w-full sm:w-[180px]">
-                        <SelectValue placeholder="Filter songs" />
+                      <SelectTrigger className="w-full sm:w-[160px]">
+                        <SelectValue placeholder="Filter" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Songs</SelectItem>
@@ -682,8 +679,8 @@ export default function DashboardPage() {
                     </Select>
                     {filter === 'genre' && (
                       <Select value={selectedGenre} onValueChange={setSelectedGenre}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
-                          <SelectValue placeholder="Select genre" />
+                        <SelectTrigger className="w-full sm:w-[160px]">
+                          <SelectValue placeholder="Genre" />
                         </SelectTrigger>
                         <SelectContent>
                           {GENRES.map((g) => (
