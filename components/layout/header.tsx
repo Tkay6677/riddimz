@@ -122,41 +122,106 @@ const Header = () => {
             />
           </div>
           <nav className="flex flex-col space-y-2">
-            <Link 
-              href="/discover" 
-              className={cn(
-                "px-3 py-2 rounded-md",
-                pathname === "/discover" || pathname === "/" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
-              )}
-            >
-              Discover
-            </Link>
-            <Link 
-              href="/home" 
-              className={cn(
-                "px-3 py-2 rounded-md",
-                pathname === "/home" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
-              )}
-            >
-              Home
-            </Link>
-            <Link 
-              href="/library" 
-              className={cn(
-                "px-3 py-2 rounded-md",
-                pathname === "/library" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
-              )}
-            >
-              Library
-            </Link>
-            <button 
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="px-3 py-2 rounded-md text-foreground hover:bg-secondary flex items-center disabled:opacity-50"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              {isLoggingOut ? 'Signing out...' : 'Log out'}
-            </button>
+            <div>
+              <h3 className="text-xs font-medium px-3 mb-2 text-muted-foreground">MAIN</h3>
+              <Link 
+                href="/discover" 
+                className={cn(
+                  "px-3 py-2 rounded-md flex items-center",
+                  pathname === "/discover" || pathname === "/" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
+                )}
+              >
+                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
+                </svg>
+                Discover
+              </Link>
+              <Link 
+                href="/library" 
+                className={cn(
+                  "px-3 py-2 rounded-md flex items-center",
+                  pathname === "/library" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
+                )}
+              >
+                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                Library
+              </Link>
+            </div>
+            
+            <div className="pt-2">
+              <h3 className="text-xs font-medium px-3 mb-2 text-muted-foreground">CATEGORIES</h3>
+              <Link 
+                href="/music" 
+                className={cn(
+                  "px-3 py-2 rounded-md flex items-center",
+                  pathname === "/music" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
+                )}
+              >
+                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M9 18V5l12-2v13"/>
+                  <circle cx="6" cy="18" r="3"/>
+                  <circle cx="18" cy="16" r="3"/>
+                </svg>
+                Music
+              </Link>
+              <Link 
+                href="/karaoke" 
+                className={cn(
+                  "px-3 py-2 rounded-md flex items-center",
+                  pathname === "/karaoke" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
+                )}
+              >
+                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="23"/>
+                  <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+                Karaoke
+              </Link>
+            </div>
+            
+            <div className="pt-2">
+              <h3 className="text-xs font-medium px-3 mb-2 text-muted-foreground">YOUR CONTENT</h3>
+              <Link 
+                href="/profile" 
+                className={cn(
+                  "px-3 py-2 rounded-md flex items-center",
+                  pathname === "/profile" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
+                )}
+              >
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </Link>
+              <Link 
+                href="/dashboard" 
+                className={cn(
+                  "px-3 py-2 rounded-md flex items-center",
+                  pathname === "/dashboard" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
+                )}
+              >
+                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                </svg>
+                Dashboard
+              </Link>
+            </div>
+            
+            <div className="pt-4 border-t">
+              <button 
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="px-3 py-2 rounded-md text-foreground hover:bg-secondary flex items-center disabled:opacity-50 w-full"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                {isLoggingOut ? 'Signing out...' : 'Log out'}
+              </button>
+            </div>
           </nav>
         </div>
       )}
