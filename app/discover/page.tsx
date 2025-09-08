@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { 
@@ -72,6 +73,11 @@ export default function DiscoverPage() {
   const [filteredArtists, setFilteredArtists] = useState<Artist[]>([])
   const [filteredGenres, setFilteredGenres] = useState<Genre[]>([])
   
+  // Genre songs state
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null)
+  const [genreSongs, setGenreSongs] = useState<Song[]>([])
+  const [loadingGenreSongs, setLoadingGenreSongs] = useState(false)
+  
   // Expanded sections state
   const [expandedSections, setExpandedSections] = useState({
     trending: false,
@@ -80,63 +86,7 @@ export default function DiscoverPage() {
     genres: false
   })
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-
-  // Filter data based on search query
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredTrending(trendingSongs)
-      setFilteredNewReleases(newReleases)
-      setFilteredArtists(popularArtists)
-      setFilteredGenres(genres)
-    } else {
-      const query = searchQuery.toLowerCase()
-      
-      // Filter songs
-      const filteredTrendingSongs = trendingSongs.filter(song =>
-        song.title.toLowerCase().includes(query) ||
-        song.artist.toLowerCase().includes(query) ||
-        song.genre?.toLowerCase().includes(query)
-      )
-      
-      const filteredNewSongs = newReleases.filter(song =>
-        song.title.toLowerCase().includes(query) ||
-        song.artist.toLowerCase().includes(query) ||
-        song.genre?.toLowerCase().includes(query)
-      )
-      
-      // Filter artists
-      const filteredArtistsList = popularArtists.filter(artist =>
-        artist.username.toLowerCase().includes(query)
-      )
-      
-      // Filter genres
-      const filteredGenresList = genres.filter(genre =>
-        genre.genre.toLowerCase().includes(query)
-      )
-      
-      setFilteredTrending(filteredTrendingSongs)
-      setFilteredNewReleases(filteredNewSongs)
-      setFilteredArtists(filteredArtistsList)
-      setFilteredGenres(filteredGenresList)
-    }
-  }, [searchQuery, trendingSongs, newReleases, popularArtists, genres])
-
-  const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }))
-  }
-
-  const getDisplayItems = (items: any[], section: keyof typeof expandedSections, defaultLimit = 8) => {
-    return expandedSections[section] ? items : items.slice(0, defaultLimit)
-  }
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       // Fetch trending songs from Supabase
       const { data: trendingData, error: trendingError } = await supabase
@@ -245,9 +195,16 @@ export default function DiscoverPage() {
         .sort((a: any, b: any) => b.song_count - a.song_count)
         .slice(0, 50) as Artist[]
 
-      // Extract genres from songs
-      const allSongs = [...filteredTrending, ...filteredNew]
-      const genreCounts = allSongs.reduce((acc: any, song) => {
+      // Get accurate genre counts from all non-karaoke songs in database
+      const { data: allSongsForGenres, error: genreError } = await supabase
+        .from('songs')
+        .select('genre')
+        .not('genre', 'is', null)
+        .not('id', 'in', `(${Array.from(karaokeTrackSongIds).join(',') || 'null'})`)
+
+      if (genreError) throw genreError
+
+      const genreCounts = (allSongsForGenres || []).reduce((acc: any, song) => {
         if (song.genre) {
           acc[song.genre] = (acc[song.genre] || 0) + 1
         }
@@ -272,7 +229,64 @@ export default function DiscoverPage() {
     } catch (error) {
       console.error('Error loading discover data:', error)
     }
+  }, [user])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+
+  // Filter data based on search query
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredTrending(trendingSongs)
+      setFilteredNewReleases(newReleases)
+      setFilteredArtists(popularArtists)
+      setFilteredGenres(genres)
+    } else {
+      const query = searchQuery.toLowerCase()
+      
+      // Filter songs
+      const filteredTrendingSongs = trendingSongs.filter(song =>
+        song.title.toLowerCase().includes(query) ||
+        song.artist.toLowerCase().includes(query) ||
+        song.genre?.toLowerCase().includes(query)
+      )
+      
+      const filteredNewSongs = newReleases.filter(song =>
+        song.title.toLowerCase().includes(query) ||
+        song.artist.toLowerCase().includes(query) ||
+        song.genre?.toLowerCase().includes(query)
+      )
+      
+      // Filter artists
+      const filteredArtistsList = popularArtists.filter(artist =>
+        artist.username.toLowerCase().includes(query)
+      )
+      
+      // Filter genres
+      const filteredGenresList = genres.filter(genre =>
+        genre.genre.toLowerCase().includes(query)
+      )
+      
+      setFilteredTrending(filteredTrendingSongs)
+      setFilteredNewReleases(filteredNewSongs)
+      setFilteredArtists(filteredArtistsList)
+      setFilteredGenres(filteredGenresList)
+    }
+  }, [searchQuery, trendingSongs, newReleases, popularArtists, genres])
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }))
   }
+
+  const getDisplayItems = (items: any[], section: keyof typeof expandedSections, defaultLimit = 8) => {
+    return expandedSections[section] ? items : items.slice(0, defaultLimit)
+  }
+
 
   const playSong = async (song: Song) => {
     try {
@@ -287,12 +301,27 @@ export default function DiscoverPage() {
         uploaderUsername: song.uploaderUsername
       })
 
-      // Record the play interaction
+      // Record the play interaction directly in Supabase (same method as like interactions)
       if (user) {
-        await recordPlay(song._id, {
-          deviceType: 'web',
-          playDuration: 0
-        })
+        try {
+          const { error } = await supabase
+            .from('user_interactions')
+            .insert({
+              user_id: user.id,
+              song_id: song._id,
+              interaction_type: 'play',
+              metadata: {
+                deviceType: 'web',
+                playDuration: 0
+              }
+            })
+
+          if (error) {
+            console.error('Error recording play interaction:', error)
+          }
+        } catch (error) {
+          console.error('Error recording play:', error)
+        }
       }
 
     } catch (error) {
@@ -302,6 +331,70 @@ export default function DiscoverPage() {
 
   const viewArtistProfile = (userId: string) => {
     router.push(`/artist/profile/${userId}`)
+  }
+
+  const loadGenreSongs = async (genre: string) => {
+    setLoadingGenreSongs(true)
+    setSelectedGenre(genre)
+    
+    try {
+      // Get karaoke track IDs to exclude
+      const { data: karaokeTrackIds } = await supabase
+        .from('karaoke_tracks')
+        .select('song_id')
+      
+      const karaokeTrackSongIds = new Set(karaokeTrackIds?.map(track => track.song_id) || [])
+      
+      // Fetch all songs for the selected genre
+      const { data: songsData, error } = await supabase
+        .from('songs')
+        .select('*')
+        .eq('genre', genre)
+        .order('play_count', { ascending: false })
+      
+      if (error) throw error
+      
+      // Filter out karaoke tracks
+      const filteredSongs = (songsData || []).filter(song => !karaokeTrackSongIds.has(song.id))
+      
+      // Get user's liked songs if logged in
+      let likedSongIds = new Set()
+      if (user) {
+        const { data: likedSongs } = await supabase
+          .from('user_interactions')
+          .select('song_id')
+          .eq('user_id', user.id)
+          .eq('interaction_type', 'like')
+        
+        likedSongIds = new Set(likedSongs?.map(like => like.song_id) || [])
+      }
+      
+      // Transform to Song interface
+      const transformedSongs = filteredSongs.map(song => ({
+        _id: song.id,
+        title: song.title,
+        artist: song.artist,
+        coverArtUrl: song.cover_url ? 
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/karaoke-songs/${song.cover_url}` : 
+          undefined,
+        audioUrl: song.audio_url ? 
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/karaoke-songs/${song.audio_url}` : 
+          undefined,
+        uploaderId: song.user_id,
+        uploaderUsername: 'User',
+        createdAt: new Date(song.created_at),
+        playCount: song.play_count || 0,
+        duration: song.duration,
+        genre: song.genre,
+        is_favorite: likedSongIds.has(song.id)
+      }))
+      
+      setGenreSongs(transformedSongs)
+    } catch (error) {
+      console.error('Error loading genre songs:', error)
+    } finally {
+      setLoadingGenreSongs(false)
+    }
   }
 
   const handleToggleLike = async (songId: string) => {
@@ -381,10 +474,11 @@ export default function DiscoverPage() {
             #{index + 1}
           </div>
         )}
-        <img 
+        <Image 
           src={song.coverArtUrl || '/images/default-cover.jpg'} 
           alt={song.title}
-          className="object-cover w-full h-full"
+          fill
+          className="object-cover"
         />
         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
           <Button 
@@ -616,6 +710,44 @@ export default function DiscoverPage() {
         
         {/* Genres Tab */}
         <TabsContent value="genres" className="mt-6">
+          {selectedGenre && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setSelectedGenre(null)}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Back to Genres
+                  </Button>
+                  <h3 className="text-xl font-semibold">{selectedGenre} Songs</h3>
+                </div>
+              </div>
+              
+              {loadingGenreSongs ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="aspect-square rounded-lg bg-secondary animate-pulse" />
+                  ))}
+                </div>
+              ) : genreSongs.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {genreSongs.map(song => renderSongCard(song))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No songs found in {selectedGenre}</h3>
+                  <p className="text-muted-foreground">This genre doesn&apos;t have any songs yet.</p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {!selectedGenre && (
+            <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold flex items-center">
               <Music2 className="h-5 w-5 mr-2" />
@@ -639,7 +771,7 @@ export default function DiscoverPage() {
                   key={genre.genre}
                   variant="outline"
                   className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-primary/10"
-                  onClick={() => setSearchQuery(genre.genre)}
+                  onClick={() => loadGenreSongs(genre.genre)}
                 >
                   <span className="text-lg font-semibold">{genre.genre}</span>
                   <Badge variant="secondary">{genre.count} songs</Badge>
@@ -655,6 +787,8 @@ export default function DiscoverPage() {
               <p className="text-muted-foreground mb-4">
                 {searchQuery ? 'Try a different search term' : 'Add genre tags when uploading songs'}
               </p>
+            </div>
+          )}
             </div>
           )}
         </TabsContent>
@@ -683,10 +817,11 @@ export default function DiscoverPage() {
               </Button>
             </div>
             <div className="relative aspect-video rounded-lg overflow-hidden hidden md:block">
-              <img 
+              <Image 
                 src="/images/weekly-picks-cover.jpg" 
                 alt="Weekly Picks" 
-                className="object-cover w-full h-full"
+                fill
+                className="object-cover"
                 onError={(e) => {
                   e.currentTarget.src = 'https://placehold.co/600x400/3a3a3c/FFFFFF?text=Weekly+Picks'
                 }}

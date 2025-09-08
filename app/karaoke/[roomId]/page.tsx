@@ -610,127 +610,132 @@ export default function KaraokeRoom() {
     if (user?.id !== room?.host_id) return null;
 
     return (
-      <div className="flex items-center justify-center space-x-4">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-            onClick={() => {
-              if (isAudioPlaying) {
-                hostPause();
-              } else {
-                hostPlay();
-              }
-            }}
-          >
-            {isAudioPlaying ? (
-              <Pause className="h-6 w-6 text-white" />
-            ) : (
-              <Play className="h-6 w-6 text-white" />
-            )}
-          </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{isSongPlaying ? 'Pause' : 'Play'}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+      <div className="flex flex-col md:flex-row items-center justify-center space-y-2 md:space-y-0 md:space-x-4">
+        {/* Main Controls Row */}
+        <div className="flex items-center justify-center space-x-2 md:space-x-4">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-white/10 hover:bg-white/20"
+              onClick={() => {
+                if (isAudioPlaying) {
+                  hostPause();
+                } else {
+                  hostPlay();
+                }
+              }}
+            >
+              {isAudioPlaying ? (
+                <Pause className="h-5 w-5 md:h-6 md:w-6 text-white" />
+              ) : (
+                <Play className="h-5 w-5 md:h-6 md:w-6 text-white" />
+              )}
+            </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isSongPlaying ? 'Pause' : 'Play'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-        {/* Sync Button */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost" 
-                size="icon" 
-                className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-                onClick={() => hostSync()}
-              >
-                <Music className="h-6 w-6 text-white" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Sync All Participants</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+          {/* Sync Button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-white/10 hover:bg-white/20"
+                  onClick={() => hostSync()}
+                >
+                  <Music className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Sync All Participants</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-        {/* Lyrics Sync Button */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost" 
-                size="icon" 
-                className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-                onClick={() => {
-                  hostSyncLyrics();
-                  toast({
-                    title: "Lyrics Synced",
-                    description: "All participants' lyrics have been synchronized.",
-                  });
-                }}
-              >
-                <MessageSquare className="h-6 w-6 text-white" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Sync Lyrics</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+          {/* Lyrics Sync Button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-white/10 hover:bg-white/20"
+                  onClick={() => {
+                    hostSyncLyrics();
+                    toast({
+                      title: "Lyrics Synced",
+                      description: "All participants' lyrics have been synchronized.",
+                    });
+                  }}
+                >
+                  <MessageSquare className="h-5 w-5 md:h-6 md:w-6 text-white" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Sync Lyrics</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-        {/* Debug Button */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-          <Button
-                variant="ghost" 
-                size="icon" 
-                className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20"
-            onClick={() => {
-                  setShowDebugPanel(!showDebugPanel);
-                  debugAudioInfo();
-            }}
-          >
-                <Bug className="h-6 w-6 text-white" />
-          </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Debug Audio</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        {/* Volume Controls */}
-        <div className="flex items-center space-x-2">
-          <Mic className="h-4 w-4 text-white" />
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.1"
-            value={localMicVolume}
-            className="w-20"
-            onChange={(e) => handleMicVolumeChange(parseFloat(e.target.value))}
-          />
-          <span className="text-white text-xs min-w-[30px]">{Math.round(localMicVolume * 100)}%</span>
+          {/* Debug Button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+            <Button
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-white/10 hover:bg-white/20"
+              onClick={() => {
+                    setShowDebugPanel(!showDebugPanel);
+                    debugAudioInfo();
+              }}
+            >
+                  <Bug className="h-5 w-5 md:h-6 md:w-6 text-white" />
+            </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Debug Audio</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
-        <div className="flex items-center space-x-2">
-          <Volume2 className="h-4 w-4 text-white" />
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.1"
-            value={musicVolume}
-            className="w-20"
-            onChange={(e) => handleMusicVolumeChange(parseFloat(e.target.value))}
-          />
-          <span className="text-white text-xs min-w-[30px]">{Math.round(musicVolume * 100)}%</span>
+
+        {/* Volume Controls Row - Hidden on mobile, shown on desktop */}
+        <div className="hidden md:flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Mic className="h-4 w-4 text-white" />
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={localMicVolume}
+              className="w-20"
+              onChange={(e) => handleMicVolumeChange(parseFloat(e.target.value))}
+            />
+            <span className="text-white text-xs min-w-[30px]">{Math.round(localMicVolume * 100)}%</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Volume2 className="h-4 w-4 text-white" />
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={musicVolume}
+              className="w-20"
+              onChange={(e) => handleMusicVolumeChange(parseFloat(e.target.value))}
+            />
+            <span className="text-white text-xs min-w-[30px]">{Math.round(musicVolume * 100)}%</span>
+          </div>
         </div>
       </div>
     );

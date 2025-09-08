@@ -85,6 +85,18 @@ export default function LibraryPage() {
         console.error('Error loading liked songs:', likedError)
       }
 
+      // Get user's liked songs if logged in
+      let likedSongIds = new Set()
+      if (user) {
+        const { data: likedSongsData } = await supabase
+          .from('user_interactions')
+          .select('song_id')
+          .eq('user_id', user.id)
+          .eq('interaction_type', 'like')
+        
+        likedSongIds = new Set(likedSongsData?.map(like => like.song_id) || [])
+      }
+
       // Transform liked songs data
       const transformedLikedSongs = (likedSongs || [])
         .filter(item => item.songs) // Filter out any null songs
@@ -107,14 +119,69 @@ export default function LibraryPage() {
           is_favorite: true
         }))
       
-      // Load recently played songs
-      const recentSongs = await getUserRecentlyPlayed(20)
+      // Load recently played songs from Supabase user_interactions (same method as liked songs)
+      const { data: recentPlays, error: recentError } = await supabase
+        .from('user_interactions')
+        .select(`
+          song_id,
+          created_at,
+          songs (
+            id,
+            title,
+            artist,
+            duration,
+            audio_url,
+            cover_url,
+            user_id,
+            created_at,
+            play_count,
+            genre
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('interaction_type', 'play')
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (recentError) {
+        console.error('Error loading recently played songs:', recentError)
+      }
+
+      // Transform recently played songs data and remove duplicates (same method as liked songs)
+      const seenSongIds = new Set()
+      const transformedRecentSongs = (recentPlays || [])
+        .filter(item => {
+          if (!item.songs || seenSongIds.has((item.songs as any).id)) {
+            return false
+          }
+          seenSongIds.add((item.songs as any).id)
+          return true
+        })
+        .map((item: any) => ({
+          _id: (item.songs as any).id,
+          title: (item.songs as any).title,
+          artist: (item.songs as any).artist,
+          coverArtUrl: (item.songs as any).cover_url ? 
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/karaoke-songs/${(item.songs as any).cover_url}` : 
+            undefined,
+          audioUrl: (item.songs as any).audio_url ? 
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/karaoke-songs/${(item.songs as any).audio_url}` : 
+            undefined,
+          uploaderId: (item.songs as any).user_id,
+          uploaderUsername: 'User',
+          createdAt: new Date((item.songs as any).created_at),
+          playCount: (item.songs as any).play_count || 0,
+          duration: (item.songs as any).duration,
+          genre: (item.songs as any).genre,
+          is_favorite: likedSongIds.has((item.songs as any).id),
+          lastPlayedAt: new Date(item.created_at)
+        }))
       
       setSongs(allSongs as Song[])
       setUploadedSongs(userSongs as Song[])
       setFavoriteSongs(transformedLikedSongs as Song[])
       setLikedSongs(transformedLikedSongs as Song[])
-      setRecentlyPlayedSongs(recentSongs as Song[])
+      setRecentlyPlayedSongs(transformedRecentSongs as Song[])
       
     } catch (error) {
       console.error('Error loading songs:', error)
@@ -203,12 +270,27 @@ export default function LibraryPage() {
         uploaderUsername: song.uploaderUsername
       })
 
-      // Record the play interaction
+      // Record the play interaction directly in Supabase (same method as like interactions)
       if (user) {
-        await recordPlay(song._id, {
-          deviceType: 'web',
-          playDuration: 0
-        })
+        try {
+          const { error } = await supabase
+            .from('user_interactions')
+            .insert({
+              user_id: user.id,
+              song_id: song._id,
+              interaction_type: 'play',
+              metadata: {
+                deviceType: 'web',
+                playDuration: 0
+              }
+            })
+
+          if (error) {
+            console.error('Error recording play interaction:', error)
+          }
+        } catch (error) {
+          console.error('Error recording play:', error)
+        }
       }
 
     } catch (error) {
@@ -339,7 +421,10 @@ export default function LibraryPage() {
       song.uploaderUsername?.toLowerCase().includes(searchQuery.toLowerCase())
     ).sort((a, b) => {
       if (sortBy === 'recent') {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        // For recently played songs, sort by lastPlayedAt if available, otherwise by createdAt
+        const aTime = (a as any).lastPlayedAt ? new Date((a as any).lastPlayedAt).getTime() : new Date(a.createdAt).getTime()
+        const bTime = (b as any).lastPlayedAt ? new Date((b as any).lastPlayedAt).getTime() : new Date(b.createdAt).getTime()
+        return bTime - aTime
       } else if (sortBy === 'popular') {
         return (b.playCount || 0) - (a.playCount || 0)
       } else {
@@ -442,12 +527,14 @@ export default function LibraryPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="favorites">
-        <TabsList>
-          <TabsTrigger value="favorites">Liked Songs</TabsTrigger>
-          <TabsTrigger value="uploaded">Your Uploads</TabsTrigger>
-          <TabsTrigger value="recent">Recently Played</TabsTrigger>
-          <TabsTrigger value="all">All Songs</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="inline-flex w-max min-w-full">
+            <TabsTrigger value="favorites" className="whitespace-nowrap">Liked Songs</TabsTrigger>
+            <TabsTrigger value="uploaded" className="whitespace-nowrap">Your Uploads</TabsTrigger>
+            <TabsTrigger value="recent" className="whitespace-nowrap">Recently Played</TabsTrigger>
+            <TabsTrigger value="all" className="whitespace-nowrap">All Songs</TabsTrigger>
+          </TabsList>
+        </div>
         
         <TabsContent value="all" className="mt-6">
           {loading ? (

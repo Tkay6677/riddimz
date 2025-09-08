@@ -1,6 +1,8 @@
 "use client"
 
 import React, { createContext, useContext, useState, useRef, useCallback, ReactNode } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 
 interface Song {
   _id: string
@@ -48,6 +50,7 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
   const [duration, setDuration] = useState(0)
   const [volume, setVolumeState] = useState(1)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const { user } = useAuth()
 
   const playSong = useCallback(async (song: Song) => {
     try {
@@ -94,6 +97,21 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
       audioRef.current = audio
       setCurrentSong(song)
       setIsPlaying(true)
+
+      // Track play event
+      if (user) {
+        try {
+          await supabase
+            .from('user_interactions')
+            .insert({
+              user_id: user.id,
+              song_id: song._id,
+              interaction_type: 'play'
+            })
+        } catch (error) {
+          console.error('Error tracking play event:', error)
+        }
+      }
 
     } catch (error) {
       console.error('Error playing song:', error)

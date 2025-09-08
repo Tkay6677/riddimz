@@ -418,20 +418,22 @@ export default function Profile() {
         {/* Main content */}
         <div className="md:col-span-2">
           <Tabs defaultValue="history" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="history">
-                <Mic className="h-4 w-4 mr-2" />
-                Performance History
-              </TabsTrigger>
-              <TabsTrigger value="songs">
-                <Music className="h-4 w-4 mr-2" />
-                My Songs
-              </TabsTrigger>
-              <TabsTrigger value="rooms">
-                <Users className="h-4 w-4 mr-2" />
-                My Rooms
-              </TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto">
+              <TabsList className="inline-flex w-max min-w-full">
+                <TabsTrigger value="history" className="whitespace-nowrap">
+                  <Mic className="h-4 w-4 mr-2" />
+                  Performance History
+                </TabsTrigger>
+                <TabsTrigger value="songs" className="whitespace-nowrap">
+                  <Music className="h-4 w-4 mr-2" />
+                  My Songs
+                </TabsTrigger>
+                <TabsTrigger value="rooms" className="whitespace-nowrap">
+                  <Users className="h-4 w-4 mr-2" />
+                  My Rooms
+                </TabsTrigger>
+              </TabsList>
+            </div>
             
             <TabsContent value="history" className="space-y-4">
               {karaokeHistory.map((performance) => (
