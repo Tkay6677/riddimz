@@ -1285,7 +1285,7 @@ export default function KaraokeRoom() {
                         <div key={participant.user.id} className="flex items-center space-x-3">
                           <Avatar>
                             <AvatarImage src={participant.user.avatar_url} alt={participant.user.username} />
-                            <AvatarFallback>{participant.user.username.slice(0, 2)}</AvatarFallback>
+                            <AvatarFallback>{participant.user.username?.slice(0, 2) || 'U'}</AvatarFallback>
                           </Avatar>
                           <div>
                             <p className="font-medium">{participant.user.username}</p>

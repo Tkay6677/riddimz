@@ -201,7 +201,7 @@ export default function KaraokePage() {
                 <div className="flex items-center space-x-3">
                   <Avatar>
                     <AvatarImage src={room.host.avatar_url || undefined} />
-                    <AvatarFallback>{room.host.username.slice(0, 2)}</AvatarFallback>
+                    <AvatarFallback>{room.host.username?.slice(0, 2) || 'U'}</AvatarFallback>
                   </Avatar>
                   <div>
                     <h3 className="font-semibold">{room.name}</h3>
