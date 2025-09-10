@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,11 +40,7 @@ export default function KaraokePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<'all' | 'live' | 'trending'>('all')
 
-  useEffect(() => {
-    loadRooms()
-  }, [activeFilter])
-
-  const loadRooms = async () => {
+  const loadRooms = useCallback(async () => {
     try {
       setLoading(true)
       let query = supabase
@@ -86,7 +82,11 @@ export default function KaraokePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [activeFilter])
+
+  useEffect(() => {
+    loadRooms()
+  }, [activeFilter, loadRooms])
 
   const filteredRooms = rooms.filter(room => 
     room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

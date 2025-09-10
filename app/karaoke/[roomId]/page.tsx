@@ -416,7 +416,7 @@ export default function KaraokeRoom() {
         chatSocket.disconnect();
       }
     };
-  }, [user, roomId, room?.host_id]);
+  }, [user, roomId, room?.host_id, router, toast]);
 
   // Add streaming state effect
   useEffect(() => {

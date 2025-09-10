@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from '@/hooks/useAuth';
+import Image from 'next/image';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,6 +80,7 @@ export default function DashboardPage() {
   const [karaokeTracks, setKaraokeTracks] = useState<KaraokeTrack[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [songFile, setSongFile] = useState<File | null>(null);
   const [lyricsFile, setLyricsFile] = useState<File | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -130,6 +132,23 @@ export default function DashboardPage() {
     return () => setIsMounted(false);
   }, []);
   
+  const loadData = useCallback(async () => {
+    if (!user?.id || !isMounted || !isVisible) return;
+    
+    setLoading(true);
+    try {
+      await Promise.all([
+        loadSongs(),
+        loadKaraokeTracks(),
+        loadRooms()
+      ]);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, isMounted, isVisible]);
+
   // Function to load songs
   const loadSongs = useCallback(async () => {
     console.log('loadSongs called', { userId: user?.id, isMounted, isVisible });
@@ -329,7 +348,7 @@ export default function DashboardPage() {
     }
 
     // removed setLoading(false)
-  }, [user]);
+  }, [user, loadSongs, loadKaraokeTracks, loadRooms]);
 
   const handleSongUpload = async () => {
     if (!user || !songFile || !songTitle || !songArtist) {
@@ -699,9 +718,11 @@ export default function DashboardPage() {
                       <div key={song.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg space-y-3 sm:space-y-0">
                         <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
                           {song.cover_url ? (
-                            <img 
+                            <Image 
                               src={song.cover_url}
                               alt={song.title}
+                              width={48}
+                              height={48}
                               className="h-10 w-10 sm:h-12 sm:w-12 rounded-md object-cover flex-shrink-0"
                             />
                           ) : (
@@ -756,9 +777,11 @@ export default function DashboardPage() {
                       <div key={track.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg space-y-3 sm:space-y-0">
                         <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
                           {track.song.cover_url ? (
-                            <img 
+                            <Image 
                               src={track.song.cover_url}
                               alt={track.song.title}
+                              width={48}
+                              height={48}
                               className="h-10 w-10 sm:h-12 sm:w-12 rounded-md object-cover flex-shrink-0"
                             />
                           ) : (

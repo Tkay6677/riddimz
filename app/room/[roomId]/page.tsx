@@ -40,7 +40,7 @@ export default function KaraokeRoom() {
         leaveRoom(roomId as string);
       }
     };
-  }, [roomId, user]);
+  }, [roomId, user, joinRoom, leaveRoom]);
 
   if (loading) {
     return <div>Loading...</div>;

@@ -188,7 +188,7 @@ export default function LibraryPage() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, getTrendingSongs, getUserSongs])
 
   useEffect(() => {
     if (user) {

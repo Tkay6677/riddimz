@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import Image from 'next/image'
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -279,7 +279,7 @@ export default function QuickKaraokeRoom() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchSongs = async () => {
+  const fetchSongs = useCallback(async () => {
     setLoading(true);
     setDebugInfo("Starting to fetch karaoke tracks from database...");
     
@@ -363,11 +363,11 @@ export default function QuickKaraokeRoom() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchSongs();
-  }, []);
+  }, [fetchSongs]);
 
   // Queue state
   const [queue, setQueue] = useState<Song[]>([]);
@@ -441,16 +441,14 @@ export default function QuickKaraokeRoom() {
     } else if (idx < currentIdx) setCurrentIdx((i) => i - 1);
   };
 
-  const loadLyrics = async () => {
-    if (!currentSong?.lyrics) return;
-    
-    const parsed = parseLyrics(currentSong.lyrics);
-    setLyrics(parsed);
-  };
-
   useEffect(() => {
     if (currentSong) {
-      loadLyrics();
+      // Load lyrics inline
+      if (currentSong?.lyrics) {
+        const parsed = parseLyrics(currentSong.lyrics);
+        setLyrics(parsed);
+      }
+      
       // Set the audio source
       if (audioRef.current) {
         audioRef.current.src = currentSong.audioUrl;
