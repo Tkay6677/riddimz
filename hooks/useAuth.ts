@@ -38,34 +38,7 @@ export function useAuth() {
     };
   }, []); // Empty dependency array since we're using the singleton client
 
-  const signUp = async (email: string, password: string, username: string) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { username }
-        }
-      });
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      return { data: null, error };
-    }
-  };
 
-  const signIn = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      return { data: null, error };
-    }
-  };
 
   const signInWithGoogle = async () => {
     try {
@@ -82,29 +55,6 @@ export function useAuth() {
     }
   };
 
-  const resetPassword = async (email: string) => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
-      });
-      if (error) throw error;
-      return { error: null };
-    } catch (error) {
-      return { error };
-    }
-  };
-
-  const updatePassword = async (password: string) => {
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: password
-      });
-      if (error) throw error;
-      return { error: null };
-    } catch (error) {
-      return { error };
-    }
-  };
 
   const signOut = async () => {
     try {
@@ -124,11 +74,7 @@ export function useAuth() {
   return useMemo(() => ({
     user,
     loading,
-    signUp,
-    signIn,
     signInWithGoogle,
-    signOut,
-    resetPassword,
-    updatePassword
+    signOut
   }), [user, loading]);
 } 
