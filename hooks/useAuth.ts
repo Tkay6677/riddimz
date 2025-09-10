@@ -55,6 +55,29 @@ export function useAuth() {
     }
   };
 
+  const signInWithWallet = async () => {
+    try {
+      // Check if Phantom wallet is available
+      if (typeof window !== 'undefined' && window.solana && window.solana.isPhantom) {
+        // Connect to Phantom wallet first
+        await window.solana.connect();
+        
+        // Use Supabase's built-in Web3 authentication
+        const { data, error } = await supabase.auth.signInWithWeb3({
+          chain: 'solana',
+          statement: 'I accept the Terms of Service and agree to sign in to Riddimz with my Solana wallet.',
+        });
+        
+        if (error) throw error;
+        return { data, error: null };
+      } else {
+        throw new Error('Phantom wallet not found. Please install Phantom wallet extension.');
+      }
+    } catch (error) {
+      return { data: null, error };
+    }
+  };
+
 
   const signOut = async () => {
     try {
@@ -75,6 +98,7 @@ export function useAuth() {
     user,
     loading,
     signInWithGoogle,
+    signInWithWallet,
     signOut
   }), [user, loading]);
 } 
