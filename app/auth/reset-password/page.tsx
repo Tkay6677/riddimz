@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { getSupabaseClient } from '@/lib/supabase-client';
+import { validatePassword, getPasswordStrengthColor, getPasswordRequirements } from '@/lib/password-validation';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -19,29 +20,51 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showRequirements, setShowRequirements] = useState(false);
   
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = getSupabaseClient();
 
   useEffect(() => {
-    // Check if we have the required tokens from the URL
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
-    
-    if (!accessToken || !refreshToken) {
-      setError('Invalid or expired reset link. Please request a new password reset.');
-    }
-  }, [searchParams]);
+    const handleAuthCallback = async () => {
+      // Check for hash parameters (Supabase uses hash, not query params)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const type = hashParams.get('type');
+      
+      if (type === 'recovery' && accessToken && refreshToken) {
+        try {
+          // Set the session with the tokens
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+          
+          if (error) {
+            setError('Invalid or expired reset link. Please request a new password reset.');
+          }
+        } catch (err) {
+          setError('Invalid or expired reset link. Please request a new password reset.');
+        }
+      } else {
+        setError('Invalid or expired reset link. Please request a new password reset.');
+      }
+    };
+
+    handleAuthCallback();
+  }, [supabase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    // Validate passwords
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    // Validate password using the same validation as signup
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      setError(`Password requirements not met: ${passwordValidation.errors.join(', ')}`);
       setLoading(false);
       return;
     }
@@ -120,9 +143,11 @@ export default function ResetPasswordPage() {
                   placeholder="Enter new password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setShowRequirements(true)}
+                  onBlur={() => setShowRequirements(false)}
                   required
                   disabled={loading}
-                  minLength={6}
+                  className={getPasswordStrengthColor(password)}
                 />
                 <Button
                   type="button"
@@ -139,6 +164,20 @@ export default function ResetPasswordPage() {
                   )}
                 </Button>
               </div>
+              
+              {showRequirements && (
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p className="font-medium">Password requirements:</p>
+                  <ul className="space-y-1">
+                    {getPasswordRequirements().map((req, index) => (
+                      <li key={index} className="flex items-center gap-2">
+                        <div className="w-1 h-1 bg-muted-foreground rounded-full" />
+                        {req}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
