@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import React from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
@@ -24,22 +25,50 @@ export default function SettingsPage() {
   const router = useRouter()
   const { toast } = useToast()
 
-  const [displayName, setDisplayName] = useState(profile?.display_name || '')
-  const [bio, setBio] = useState(profile?.bio || '')
-  const [location, setLocation] = useState(profile?.location || '')
-  const [website, setWebsite] = useState(profile?.website || '')
+  const [displayName, setDisplayName] = useState('')
+  const [bio, setBio] = useState('')
+  const [location, setLocation] = useState('')
+  const [website, setWebsite] = useState('')
   
-  const [email, setEmail] = useState(user?.email || '')
-  const [emailNotifications, setEmailNotifications] = useState(profile?.notification_preferences?.email_notifications ?? true)
-  const [pushNotifications, setPushNotifications] = useState(profile?.notification_preferences?.push_notifications ?? true)
-  const [karaokeInvites, setKaraokeInvites] = useState(profile?.notification_preferences?.karaoke_invites ?? true)
-  const [newFollowers, setNewFollowers] = useState(profile?.notification_preferences?.new_followers ?? true)
-  const [songRecommendations, setSongRecommendations] = useState(profile?.notification_preferences?.song_recommendations ?? true)
+  const [email, setEmail] = useState('')
+  const [emailNotifications, setEmailNotifications] = useState(true)
+  const [pushNotifications, setPushNotifications] = useState(true)
+  const [karaokeInvites, setKaraokeInvites] = useState(true)
+  const [newFollowers, setNewFollowers] = useState(true)
+  const [songRecommendations, setSongRecommendations] = useState(true)
   
-  const [profileVisibility, setProfileVisibility] = useState(profile?.privacy_settings?.profile_visibility || 'public')
-  const [showActivity, setShowActivity] = useState(profile?.privacy_settings?.show_activity ?? true)
-  const [showPlaylists, setShowPlaylists] = useState(profile?.privacy_settings?.show_playlists ?? true)
-  const [allowMessages, setAllowMessages] = useState(profile?.privacy_settings?.allow_messages ?? true)
+  const [profileVisibility, setProfileVisibility] = useState('public')
+  const [showActivity, setShowActivity] = useState(true)
+  const [showPlaylists, setShowPlaylists] = useState(true)
+  const [allowMessages, setAllowMessages] = useState(true)
+
+  // Update form fields when profile data loads
+  React.useEffect(() => {
+    if (profile) {
+      setDisplayName(profile.display_name || '')
+      setBio(profile.bio || '')
+      setLocation(profile.location || '')
+      setWebsite(profile.website || '')
+      
+      setEmailNotifications(profile.notification_preferences?.email_notifications ?? true)
+      setPushNotifications(profile.notification_preferences?.push_notifications ?? true)
+      setKaraokeInvites(profile.notification_preferences?.karaoke_invites ?? true)
+      setNewFollowers(profile.notification_preferences?.new_followers ?? true)
+      setSongRecommendations(profile.notification_preferences?.song_recommendations ?? true)
+      
+      setProfileVisibility(profile.privacy_settings?.profile_visibility || 'public')
+      setShowActivity(profile.privacy_settings?.show_activity ?? true)
+      setShowPlaylists(profile.privacy_settings?.show_playlists ?? true)
+      setAllowMessages(profile.privacy_settings?.allow_messages ?? true)
+    }
+  }, [profile])
+
+  // Update email when user data loads
+  React.useEffect(() => {
+    if (user?.email) {
+      setEmail(user.email)
+    }
+  }, [user])
   
   const [isUpdating, setIsUpdating] = useState(false)
 

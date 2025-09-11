@@ -72,6 +72,14 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION create_user_profile();
 
+-- Create profiles for existing users
+INSERT INTO user_profile (user_id, display_name)
+SELECT 
+    id,
+    COALESCE(raw_user_meta_data->>'username', email, 'User')
+FROM auth.users
+WHERE id NOT IN (SELECT user_id FROM user_profile);
+
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_user_profile_updated_at()
 RETURNS TRIGGER AS $$
