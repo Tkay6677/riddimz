@@ -3,11 +3,37 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
-
 import { useMemo } from 'react';
 
+interface UserProfile {
+  id: string;
+  user_id: string;
+  display_name?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  social_links?: Record<string, string>;
+  profile_banner_url?: string;
+  profile_theme?: string;
+  privacy_settings?: {
+    profile_visibility: 'public' | 'private';
+    show_activity: boolean;
+    show_playlists: boolean;
+    allow_messages: boolean;
+  };
+  notification_preferences?: {
+    email_notifications: boolean;
+    push_notifications: boolean;
+    karaoke_invites: boolean;
+    new_followers: boolean;
+    song_recommendations: boolean;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
 export function useProfile(user: User | null) {
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,13 +56,29 @@ export function useProfile(user: User | null) {
         return;
       }
 
-      const { data, error: profileError } = await supabase
-        .from('users')
+      // First try to get existing profile
+      let { data, error: profileError } = await supabase
+        .from('user_profile')
         .select('*')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single();
 
-      if (profileError) throw profileError;
+      // If no profile exists, create one
+      if (profileError && profileError.code === 'PGRST116') {
+        const { data: newProfile, error: createError } = await supabase
+          .from('user_profile')
+          .insert({
+            user_id: user.id,
+            display_name: user.user_metadata?.username || user.email?.split('@')[0] || 'User',
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        data = newProfile;
+      } else if (profileError) {
+        throw profileError;
+      }
 
       setProfile(data);
     } catch (err: any) {
@@ -46,7 +88,7 @@ export function useProfile(user: User | null) {
     }
   };
 
-  const updateProfile = async (updates: any) => {
+  const updateProfile = async (updates: Partial<UserProfile>) => {
     try {
       setLoading(true);
       setError(null);
@@ -56,9 +98,9 @@ export function useProfile(user: User | null) {
       }
 
       const { data, error: updateError } = await supabase
-        .from('users')
+        .from('user_profile')
         .update(updates)
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .select()
         .single();
 
@@ -74,11 +116,47 @@ export function useProfile(user: User | null) {
     }
   };
 
+  const uploadAvatar = async (file: File) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('profiles')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('profiles')
+        .getPublicUrl(filePath);
+
+      // Update profile with new avatar URL
+      await updateProfile({ profile_banner_url: publicUrl });
+
+      return publicUrl;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return useMemo(() => ({
     profile,
     loading,
     error,
     updateProfile,
+    uploadAvatar,
     refreshProfile: fetchProfile
-  }), [profile, loading, error, updateProfile, fetchProfile]);
+  }), [profile, loading, error]);
 } 

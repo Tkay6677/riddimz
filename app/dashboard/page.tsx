@@ -611,12 +611,12 @@ export default function DashboardPage() {
             <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3 min-w-0">
                 <Avatar className="h-12 w-12 sm:h-16 sm:w-16 flex-shrink-0">
-                  <AvatarImage src={profile?.avatar_url} />
-                  <AvatarFallback>{profile?.username?.slice(0, 2)}</AvatarFallback>
+                  <AvatarImage src={profile?.profile_banner_url} />
+                  <AvatarFallback>{profile?.display_name?.slice(0, 2) || 'RD'}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <div className="text-base sm:text-xl font-semibold truncate">{profile?.username}</div>
-                  <div className="text-sm text-muted-foreground truncate">{profile?.email}</div>
+                  <div className="text-base sm:text-xl font-semibold truncate">{profile?.display_name}</div>
+                  <div className="text-sm text-muted-foreground truncate">{user?.email}</div>
                 </div>
               </div>
               <Button variant="outline" onClick={async () => {

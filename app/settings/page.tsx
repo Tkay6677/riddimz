@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { AlertCircle, Bell, ChevronLeft, Key, Lock, Moon, Save, Shield, Sun, User } from 'lucide-react'
+import { AlertCircle, Bell, ChevronLeft, Eye, EyeOff, Key, Lock, Moon, Save, Shield, Sun, User } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/components/ui/use-toast'
 import Link from 'next/link'
@@ -19,19 +19,27 @@ import { useTheme } from 'next-themes'
 
 export default function SettingsPage() {
   const { user, loading: authLoading, signOut } = useAuth()
-  const { profile, updateProfile, loading: profileLoading } = useProfile(user)
+  const { profile, updateProfile, uploadAvatar, loading: profileLoading } = useProfile(user)
   const { setTheme, theme } = useTheme()
   const router = useRouter()
   const { toast } = useToast()
 
-  const [username, setUsername] = useState(profile?.username || '')
-  const [name, setName] = useState(profile?.full_name || '')
+  const [displayName, setDisplayName] = useState(profile?.display_name || '')
   const [bio, setBio] = useState(profile?.bio || '')
+  const [location, setLocation] = useState(profile?.location || '')
+  const [website, setWebsite] = useState(profile?.website || '')
   
   const [email, setEmail] = useState(user?.email || '')
-  const [emailNotifications, setEmailNotifications] = useState(profile?.settings?.email_notifications || true)
-  const [songFinishedNotifications, setSongFinishedNotifications] = useState(profile?.settings?.song_finished_notifications || true)
-  const [roomInviteNotifications, setRoomInviteNotifications] = useState(profile?.settings?.room_invite_notifications || true)
+  const [emailNotifications, setEmailNotifications] = useState(profile?.notification_preferences?.email_notifications ?? true)
+  const [pushNotifications, setPushNotifications] = useState(profile?.notification_preferences?.push_notifications ?? true)
+  const [karaokeInvites, setKaraokeInvites] = useState(profile?.notification_preferences?.karaoke_invites ?? true)
+  const [newFollowers, setNewFollowers] = useState(profile?.notification_preferences?.new_followers ?? true)
+  const [songRecommendations, setSongRecommendations] = useState(profile?.notification_preferences?.song_recommendations ?? true)
+  
+  const [profileVisibility, setProfileVisibility] = useState(profile?.privacy_settings?.profile_visibility || 'public')
+  const [showActivity, setShowActivity] = useState(profile?.privacy_settings?.show_activity ?? true)
+  const [showPlaylists, setShowPlaylists] = useState(profile?.privacy_settings?.show_playlists ?? true)
+  const [allowMessages, setAllowMessages] = useState(profile?.privacy_settings?.allow_messages ?? true)
   
   const [isUpdating, setIsUpdating] = useState(false)
 
@@ -41,13 +49,22 @@ export default function SettingsPage() {
     setIsUpdating(true)
     try {
       await updateProfile({
-        username,
-        full_name: name,
+        display_name: displayName,
         bio,
-        settings: {
+        location,
+        website,
+        notification_preferences: {
           email_notifications: emailNotifications,
-          song_finished_notifications: songFinishedNotifications,
-          room_invite_notifications: roomInviteNotifications
+          push_notifications: pushNotifications,
+          karaoke_invites: karaokeInvites,
+          new_followers: newFollowers,
+          song_recommendations: songRecommendations
+        },
+        privacy_settings: {
+          profile_visibility: profileVisibility as 'public' | 'private',
+          show_activity: showActivity,
+          show_playlists: showPlaylists,
+          allow_messages: allowMessages
         }
       })
       
@@ -70,11 +87,9 @@ export default function SettingsPage() {
     const file = e.target.files?.[0]
     if (!file || !user) return
     
-    // This would be replaced with your actual avatar upload logic
     setIsUpdating(true)
     try {
-      // Assuming useProfile hook has an uploadAvatar method
-      // await uploadAvatar(file)
+      await uploadAvatar(file)
       toast({
         title: "Avatar updated",
         description: "Your profile picture has been updated successfully."
@@ -160,8 +175,8 @@ export default function SettingsPage() {
               {/* Avatar Upload */}
               <div className="flex flex-col items-center space-y-3">
                 <Avatar className="h-24 w-24">
-                  <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback>{username?.slice(0, 2) || 'RD'}</AvatarFallback>
+                  <AvatarImage src={profile?.profile_banner_url || undefined} />
+                  <AvatarFallback>{displayName?.slice(0, 2) || 'RD'}</AvatarFallback>
                 </Avatar>
                 <div>
                   <Label htmlFor="avatar-upload" className="cursor-pointer px-4 py-2 rounded-md bg-secondary hover:bg-secondary/80 text-sm font-medium">
@@ -177,28 +192,39 @@ export default function SettingsPage() {
                 </div>
               </div>
               
-              {/* Username */}
+              {/* Display Name */}
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="displayName">Display Name</Label>
                 <Input 
-                  id="username" 
-                  placeholder="Your unique username" 
-                  value={username} 
-                  onChange={(e) => setUsername(e.target.value)} 
+                  id="displayName" 
+                  placeholder="Your display name" 
+                  value={displayName} 
+                  onChange={(e) => setDisplayName(e.target.value)} 
                 />
                 <p className="text-xs text-muted-foreground">
                   This will be your display name for performances and rooms.
                 </p>
               </div>
               
-              {/* Full Name */}
+              {/* Location */}
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="location">Location</Label>
                 <Input 
-                  id="name" 
-                  placeholder="Your full name (optional)" 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)} 
+                  id="location" 
+                  placeholder="Your location (optional)" 
+                  value={location} 
+                  onChange={(e) => setLocation(e.target.value)} 
+                />
+              </div>
+              
+              {/* Website */}
+              <div className="space-y-2">
+                <Label htmlFor="website">Website</Label>
+                <Input 
+                  id="website" 
+                  placeholder="Your website or portfolio (optional)" 
+                  value={website} 
+                  onChange={(e) => setWebsite(e.target.value)} 
                 />
               </div>
               
@@ -268,33 +294,65 @@ export default function SettingsPage() {
                 
                 <Separator />
                 
-                {/* Song Finished Notifications */}
+                {/* Push Notifications */}
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <h4 className="font-medium">Song Performance Notifications</h4>
+                    <h4 className="font-medium">Push Notifications</h4>
                     <p className="text-sm text-muted-foreground">
-                      Get notified when someone completes your song
+                      Receive real-time notifications in your browser
                     </p>
                   </div>
                   <Switch 
-                    checked={songFinishedNotifications}
-                    onCheckedChange={setSongFinishedNotifications}
+                    checked={pushNotifications}
+                    onCheckedChange={setPushNotifications}
                   />
                 </div>
                 
                 <Separator />
                 
-                {/* Room Invites */}
+                {/* Karaoke Invites */}
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <h4 className="font-medium">Room Invitations</h4>
+                    <h4 className="font-medium">Karaoke Invitations</h4>
                     <p className="text-sm text-muted-foreground">
                       Get notified when someone invites you to a karaoke room
                     </p>
                   </div>
                   <Switch 
-                    checked={roomInviteNotifications}
-                    onCheckedChange={setRoomInviteNotifications}
+                    checked={karaokeInvites}
+                    onCheckedChange={setKaraokeInvites}
+                  />
+                </div>
+                
+                <Separator />
+                
+                {/* New Followers */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h4 className="font-medium">New Followers</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Get notified when someone follows you
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={newFollowers}
+                    onCheckedChange={setNewFollowers}
+                  />
+                </div>
+                
+                <Separator />
+                
+                {/* Song Recommendations */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h4 className="font-medium">Song Recommendations</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Get notified about new songs you might like
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={songRecommendations}
+                    onCheckedChange={setSongRecommendations}
                   />
                 </div>
               </div>
@@ -362,26 +420,103 @@ export default function SettingsPage() {
         <TabsContent value="security" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Security Settings</CardTitle>
+              <CardTitle>Privacy Settings</CardTitle>
+              <CardDescription>
+                Control who can see your profile and activity.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                {/* Profile Visibility */}
+                <div className="space-y-3">
+                  <h4 className="font-medium">Profile Visibility</h4>
+                  <div className="flex items-center space-x-4">
+                    <Button
+                      variant={profileVisibility === 'public' ? 'default' : 'outline'}
+                      className="flex-1"
+                      onClick={() => setProfileVisibility('public')}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      Public
+                    </Button>
+                    <Button
+                      variant={profileVisibility === 'private' ? 'default' : 'outline'}
+                      className="flex-1"
+                      onClick={() => setProfileVisibility('private')}
+                    >
+                      <EyeOff className="mr-2 h-4 w-4" />
+                      Private
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Public profiles can be viewed by anyone. Private profiles are only visible to you.
+                  </p>
+                </div>
+                
+                <Separator />
+                
+                {/* Show Activity */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h4 className="font-medium">Show Activity</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Let others see your recent karaoke activity
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={showActivity}
+                    onCheckedChange={setShowActivity}
+                  />
+                </div>
+                
+                <Separator />
+                
+                {/* Show Playlists */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h4 className="font-medium">Show Playlists</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Allow others to view your playlists and song collections
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={showPlaylists}
+                    onCheckedChange={setShowPlaylists}
+                  />
+                </div>
+                
+                <Separator />
+                
+                {/* Allow Messages */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h4 className="font-medium">Allow Messages</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Let other users send you direct messages
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={allowMessages}
+                    onCheckedChange={setAllowMessages}
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleProfileUpdate} disabled={isUpdating}>
+                {isUpdating ? 'Saving...' : 'Save Privacy Settings'}
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Security</CardTitle>
               <CardDescription>
                 Manage your account security and login preferences.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Change Password */}
-              <div className="space-y-2">
-                <h4 className="font-medium">Change Password</h4>
-                <p className="text-sm text-muted-foreground">
-                  Update your password to keep your account secure.
-                </p>
-                <Button variant="outline" className="mt-2" onClick={() => router.push('/auth/reset-password')}>
-                  <Key className="mr-2 h-4 w-4" />
-                  Change Password
-                </Button>
-              </div>
-              
-              <Separator />
-              
               {/* Sign Out */}
               <div className="space-y-2">
                 <h4 className="font-medium">Sign Out</h4>
