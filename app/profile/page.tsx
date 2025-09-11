@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuth } from '@/hooks/useAuth'
+import { useProfile } from '@/hooks/useProfile'
 import { useToast } from '@/components/ui/use-toast'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
@@ -99,6 +100,7 @@ export default function Profile() {
   const [userSongs, setUserSongs] = useState<Song[]>([])
   const [userRooms, setUserRooms] = useState<Room[]>([])
   const { user } = useAuth()
+  const { profile } = useProfile(user)
   const { toast } = useToast()
   const supabase = createClientComponentClient()
   const [isInitialLoad, setIsInitialLoad] = useState(true)
@@ -304,14 +306,14 @@ export default function Profile() {
               {/* Avatar */}
               <div className="flex justify-center">
                 <Avatar className="h-24 w-24 border-4 border-background mt-[-3rem] rounded-full">
-                  <AvatarImage src={userProfile.avatar_url} alt={userProfile.username} />
-                  <AvatarFallback>{userProfile.username.slice(0, 2)}</AvatarFallback>
+                  <AvatarImage src={profile?.profile_banner_url || userProfile.avatar_url} alt={profile?.display_name || userProfile.username} />
+                  <AvatarFallback>{(profile?.display_name || userProfile.username).slice(0, 2)}</AvatarFallback>
                 </Avatar>
               </div>
               
               <div className="text-center p-6 pt-2">
-                <h2 className="text-2xl font-bold">{userProfile.username}</h2>
-                <p className="text-muted-foreground">{userProfile.username}</p>
+                <h2 className="text-2xl font-bold">{profile?.display_name || userProfile.username}</h2>
+                <p className="text-muted-foreground">{user?.email || userProfile.email}</p>
                 
                 <div className="flex justify-center space-x-6 mt-4">
                   <div className="text-center">

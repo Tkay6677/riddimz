@@ -17,13 +17,16 @@ import {
 import { cn } from '@/lib/utils'
 import { WalletConnect } from '@/components/wallet/wallet-connect'
 import { useAuth } from '@/hooks/useAuth'
+import { useProfile } from '@/hooks/useProfile'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const pathname = usePathname()
-  const { signOut } = useAuth()
+  const { user, signOut } = useAuth()
+  const { profile } = useProfile(user)
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -84,9 +87,12 @@ const Header = () => {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full bg-secondary">
-                <User className="h-5 w-5" />
-              </Button>
+              <Avatar className="h-8 w-8 cursor-pointer">
+                <AvatarImage src={profile?.profile_banner_url} />
+                <AvatarFallback>
+                  <User className="h-4 w-4" />
+                </AvatarFallback>
+              </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
