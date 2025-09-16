@@ -28,8 +28,17 @@ const Header = () => {
   const { user, signOut } = useAuth()
   const { profile } = useProfile(user)
 
+  const handleNavClick = () => setIsMobileMenuOpen(false)
+
+  useEffect(() => {
+    // Close mobile menu on route changes
+    setIsMobileMenuOpen(false)
+  }, [pathname])
+
   const handleLogout = async () => {
     setIsLoggingOut(true)
+    // Ensure mobile menu closes when logging out from the mobile nav
+    setIsMobileMenuOpen(false)
     try {
       await signOut()
     } catch (error) {
@@ -132,6 +141,7 @@ const Header = () => {
               <h3 className="text-xs font-medium px-3 mb-2 text-muted-foreground">MAIN</h3>
               <Link 
                 href="/discover" 
+                onClick={handleNavClick}
                 className={cn(
                   "px-3 py-2 rounded-md flex items-center",
                   pathname === "/discover" || pathname === "/" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
@@ -145,6 +155,7 @@ const Header = () => {
               </Link>
               <Link 
                 href="/library" 
+                onClick={handleNavClick}
                 className={cn(
                   "px-3 py-2 rounded-md flex items-center",
                   pathname === "/library" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
@@ -162,6 +173,7 @@ const Header = () => {
               <h3 className="text-xs font-medium px-3 mb-2 text-muted-foreground">CATEGORIES</h3>
               <Link 
                 href="/music" 
+                onClick={handleNavClick}
                 className={cn(
                   "px-3 py-2 rounded-md flex items-center",
                   pathname === "/music" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
@@ -176,6 +188,7 @@ const Header = () => {
               </Link>
               <Link 
                 href="/karaoke" 
+                onClick={handleNavClick}
                 className={cn(
                   "px-3 py-2 rounded-md flex items-center",
                   pathname === "/karaoke" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
@@ -195,6 +208,7 @@ const Header = () => {
               <h3 className="text-xs font-medium px-3 mb-2 text-muted-foreground">YOUR CONTENT</h3>
               <Link 
                 href="/profile" 
+                onClick={handleNavClick}
                 className={cn(
                   "px-3 py-2 rounded-md flex items-center",
                   pathname === "/profile" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
@@ -205,6 +219,7 @@ const Header = () => {
               </Link>
               <Link 
                 href="/dashboard" 
+                onClick={handleNavClick}
                 className={cn(
                   "px-3 py-2 rounded-md flex items-center",
                   pathname === "/dashboard" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
