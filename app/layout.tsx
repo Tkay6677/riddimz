@@ -3,8 +3,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
-import Header from '@/components/layout/header';
-import { Sidebar } from '@/components/layout/sidebar';
+import AppShell from '@/components/layout/app-shell';
 import { AppProvider } from '@/providers/AppProvider';
 import { WalletContextProvider } from '@/components/providers/wallet-provider';
 import SupabaseProvider from '@/lib/supabase-context';
@@ -36,15 +35,9 @@ export default function RootLayout({
           <SupabaseProvider>
             <AppProvider>
           <WalletContextProvider>
-            <div className="flex h-screen overflow-hidden bg-background">
-              <Sidebar />
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <Header />
-                <main className="flex-1 overflow-y-auto py-2">
-                  {children}
-                </main>
-              </div>
-            </div>
+            <AppShell>
+              {children}
+            </AppShell>
             <GlobalMusicPlayer />
             <Toaster />
           </WalletContextProvider>

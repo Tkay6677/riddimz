@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Chrome, Wallet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
+import Image from 'next/image';
 
 export const dynamic = 'force-dynamic'
 
@@ -56,6 +57,16 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
+          <div className="mb-2 flex justify-center">
+            <Image
+              src="/riddimz-logo.jpg"
+              alt="Riddimz logo"
+              width={96}
+              height={96}
+              priority
+              className="rounded-md"
+            />
+          </div>
           <CardTitle className="text-2xl">Welcome to Riddimz</CardTitle>
           <CardDescription>Choose your preferred sign-in method</CardDescription>
         </CardHeader>
