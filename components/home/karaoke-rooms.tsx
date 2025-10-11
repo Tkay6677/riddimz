@@ -148,7 +148,7 @@ export function KaraokeRooms({ limit = 6, filter }: KaraokeRoomsProps) {
           query = query.eq('is_live', true)
           break
         case 'popular':
-          query = query.order('participants_count', { ascending: false })
+          // We'll sort by participant count on the client after fetching
           break
         case 'featured':
           query = query.eq('is_featured', true)
@@ -160,12 +160,23 @@ export function KaraokeRooms({ limit = 6, filter }: KaraokeRoomsProps) {
       if (error) throw error
 
       if (data) {
-        // Transform the data to match our Room interface
-        const transformedRooms = data.map(room => ({
-          ...room,
-          participants_count: room.participants?.length || 0
-        }))
-        setRooms(transformedRooms)
+        // Prefer server-tracked current_participants; fallback to visible participants length (may be restricted by RLS)
+        const transformedRooms = data.map(room => {
+          const currentParticipants = typeof room.current_participants === 'number'
+            ? room.current_participants
+            : (Array.isArray(room.participants) ? room.participants.length : 0)
+          return {
+            ...room,
+            participants_count: currentParticipants,
+          }
+        })
+
+        // Client-side sort for popularity
+        const sortedRooms = filter === 'popular'
+          ? transformedRooms.sort((a, b) => b.participants_count - a.participants_count)
+          : transformedRooms
+
+        setRooms(sortedRooms)
       }
     } catch (error) {
       console.error('Error loading rooms:', error)

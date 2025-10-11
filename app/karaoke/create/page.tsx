@@ -10,7 +10,7 @@ import { Mic, Music, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import SongPicker from '@/components/karaoke/song-picker';
+// Song selection removed from create flow; selection happens inside the room
 import { useToast } from '@/components/ui/use-toast';
 
 export const dynamic = 'force-dynamic'
@@ -19,7 +19,6 @@ export default function CreateKaraokeRoom() {
   const router = useRouter();
   const { toast } = useToast();
   const [isCreating, setIsCreating] = useState(false);
-  const [selectedSong, setSelectedSong] = useState<any>(null);
   const [roomData, setRoomData] = useState({
     name: '',
     description: '',
@@ -40,17 +39,13 @@ export default function CreateKaraokeRoom() {
     }
   });
 
-  const handleSongSelect = (song: any) => {
-    setSelectedSong(song);
-  };
-
   const createRoom = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!roomData.name || !selectedSong) {
+    if (!roomData.name) {
       toast({
         variant: "destructive",
         title: "Missing Information",
-        description: "Please provide a room name and select a song.",
+        description: "Please provide a room name.",
         duration: 4000,
       });
       return;
@@ -61,17 +56,13 @@ export default function CreateKaraokeRoom() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Create room with selected song data
+      // Create room without pre-selected song
       const { data: room, error: roomError } = await supabase
         .from('karaoke_rooms')
         .insert({
           name: roomData.name,
           description: roomData.description,
           host_id: user.id,
-          song_url: selectedSong.audioUrl || selectedSong.audio_url,
-          lyrics_url: selectedSong.lyricsUrl || selectedSong.lyrics_url,
-          current_song_id: selectedSong.songId || selectedSong._id || selectedSong.id,
-          current_track_id: selectedSong._id || selectedSong.id,
           is_live: true,
           is_private: roomData.isPrivate,
           password: roomData.isPrivate ? roomData.password : null,
@@ -153,6 +144,8 @@ export default function CreateKaraokeRoom() {
               />
             </div>
 
+            {/* Optional fields - commented out for simplified form */}
+            {/* 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="theme">Theme</Label>
@@ -204,7 +197,10 @@ export default function CreateKaraokeRoom() {
                 </Select>
               </div>
             </div>
+            */}
 
+            {/* Private room settings - commented out for simplified form */}
+            {/*
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -230,6 +226,7 @@ export default function CreateKaraokeRoom() {
                 </div>
               )}
             </div>
+            */}
 
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Room Settings</h3>
@@ -260,6 +257,20 @@ export default function CreateKaraokeRoom() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
+                    id="enableLyrics"
+                    checked={roomData.settings.enableLyrics}
+                    onCheckedChange={(checked) => 
+                      setRoomData({
+                        ...roomData,
+                        settings: { ...roomData.settings, enableLyrics: checked as boolean }
+                      })}
+                  />
+                  <Label htmlFor="enableLyrics">Show Lyrics</Label>
+                </div>
+                {/* Advanced settings - commented out for simplified form */}
+                {/*
+                <div className="flex items-center space-x-2">
+                  <Checkbox
                     id="enableVideo"
                     checked={roomData.settings.enableVideo}
                     onCheckedChange={(checked) => 
@@ -284,18 +295,6 @@ export default function CreateKaraokeRoom() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="enableLyrics"
-                    checked={roomData.settings.enableLyrics}
-                    onCheckedChange={(checked) => 
-                      setRoomData({
-                        ...roomData,
-                        settings: { ...roomData.settings, enableLyrics: checked as boolean }
-                      })}
-                  />
-                  <Label htmlFor="enableLyrics">Show Lyrics</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
                     id="enableScoring"
                     checked={roomData.settings.enableScoring}
                     onCheckedChange={(checked) => 
@@ -306,21 +305,14 @@ export default function CreateKaraokeRoom() {
                   />
                   <Label htmlFor="enableScoring">Enable Scoring</Label>
                 </div>
+                */}
               </div>
-            </div>
-
-            {/* Song Selection */}
-            <div>
-              <SongPicker 
-                onSongSelect={handleSongSelect}
-                selectedSongId={selectedSong?._id || selectedSong?.id}
-              />
             </div>
 
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isCreating || !selectedSong}
+              disabled={isCreating}
             >
               {isCreating ? 'Creating Room...' : 'Create Room'}
             </Button>

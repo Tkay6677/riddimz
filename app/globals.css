@@ -27,51 +27,61 @@
     /* Riddimz purple (approx. #8A2BE2) */
     --primary: 271 76% 53%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --secondary: 271 30% 95%; /* Light purple secondary */
+    --secondary-foreground: 271 76% 25%;
+    --muted: 271 20% 96%; /* Very light purple muted */
+    --muted-foreground: 271 15% 46.1%;
+    --accent: 271 40% 88%; /* Purple accent */
+    --accent-foreground: 271 76% 25%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 271 76% 53%;
-    --chart-1: 346 77% 49%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --border: 271 25% 91.4%; /* Light purple border */
+    --input: 271 25% 91.4%; /* Light purple input */
+    --ring: 271 76% 53%; /* Purple ring */
+    --chart-1: 271 76% 61%; /* Purple chart colors */
+    --chart-2: 271 58% 39%;
+    --chart-3: 271 37% 24%;
+    --chart-4: 271 74% 66%;
+    --chart-5: 271 87% 67%;
     --radius: 0.5rem;
+    /* Additional purple theme colors */
+    --purple-50: 271 100% 98%;
+    --purple-100: 271 100% 95%;
+    --purple-200: 271 100% 90%;
+    --purple-300: 271 76% 80%;
+    --purple-400: 271 76% 65%;
+    --purple-500: 271 76% 53%;
+    --purple-600: 271 76% 45%;
+    --purple-700: 271 76% 35%;
+    --purple-800: 271 76% 25%;
+    --purple-900: 271 76% 15%;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    /* Riddimz purple in dark */
-    --primary: 271 76% 53%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --background: 271 50% 4.9%; /* Dark purple background */
+    --foreground: 271 20% 98%;
+    --card: 271 50% 6%; /* Dark purple card */
+    --card-foreground: 271 20% 98%;
+    --popover: 271 50% 6%; /* Dark purple popover */
+    --popover-foreground: 271 20% 98%;
+    --primary: 271 76% 53%; /* Riddimz purple */
+    --primary-foreground: 271 20% 98%;
+    --secondary: 271 40% 17.5%; /* Dark purple secondary */
+    --secondary-foreground: 271 20% 98%;
+    --muted: 271 40% 17.5%; /* Dark purple muted */
+    --muted-foreground: 271 20% 65.1%;
+    --accent: 271 50% 25%; /* Dark purple accent */
+    --accent-foreground: 271 20% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 271 76% 53%;
-    --chart-1: 346 77% 49%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --destructive-foreground: 271 20% 98%;
+    --border: 271 40% 17.5%; /* Dark purple border */
+    --input: 271 40% 17.5%; /* Dark purple input */
+    --ring: 271 76% 53%; /* Purple ring */
+    --chart-1: 271 70% 50%; /* Purple chart colors for dark theme */
+    --chart-2: 271 60% 45%;
+    --chart-3: 271 80% 55%;
+    --chart-4: 271 65% 60%;
+    --chart-5: 271 75% 55%;
   }
 }
 

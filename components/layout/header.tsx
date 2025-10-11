@@ -23,22 +23,26 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const pathname = usePathname()
   const { user, signOut } = useAuth()
   const { profile } = useProfile(user)
 
   const handleNavClick = () => setIsMobileMenuOpen(false)
+  const handleProfileMenuClick = () => setIsProfileMenuOpen(false)
 
   useEffect(() => {
-    // Close mobile menu on route changes
+    // Close mobile menu and profile menu on route changes
     setIsMobileMenuOpen(false)
+    setIsProfileMenuOpen(false)
   }, [pathname])
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
-    // Ensure mobile menu closes when logging out from the mobile nav
+    // Ensure mobile menu and profile menu close when logging out
     setIsMobileMenuOpen(false)
+    setIsProfileMenuOpen(false)
     try {
       await signOut()
     } catch (error) {
@@ -94,7 +98,7 @@ const Header = () => {
           
           
 
-          <DropdownMenu>
+          <DropdownMenu open={isProfileMenuOpen} onOpenChange={setIsProfileMenuOpen}>
             <DropdownMenuTrigger asChild>
               <Avatar className="h-8 w-8 cursor-pointer">
                 <AvatarImage src={profile?.profile_banner_url} />
@@ -106,13 +110,13 @@ const Header = () => {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleProfileMenuClick}>
                 <Link href="/profile" className="w-full">Profile</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleProfileMenuClick}>
                 <Link href="/dashboard" className="w-full">Dashboard</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleProfileMenuClick}>
                 <Link href="/settings" className="w-full">Settings</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

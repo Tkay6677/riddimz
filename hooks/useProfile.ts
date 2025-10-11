@@ -27,6 +27,16 @@ interface UserProfile {
     karaoke_invites: boolean;
     new_followers: boolean;
     song_recommendations: boolean;
+    // Added optional fields used by Settings page
+    performance_reminders?: boolean;
+    weekly_digest?: boolean;
+  };
+  // Added appearance preferences used by Settings page
+  appearance_preferences?: {
+    font_size?: number;
+    sound_effects?: boolean;
+    animations?: boolean;
+    compact_mode?: boolean;
   };
   created_at: string;
   updated_at: string;
@@ -159,4 +169,4 @@ export function useProfile(user: User | null) {
     uploadAvatar,
     refreshProfile: fetchProfile
   }), [profile, loading, error]);
-} 
+}

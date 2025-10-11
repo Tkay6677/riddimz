@@ -96,6 +96,7 @@ export function useKaraokeRoom() {
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const socketRef = useRef<Socket | null>(null);
+  const timeupdateHandlerRef = useRef<((e: Event) => void) | null>(null);
 
   // Parse time string to seconds
   const parseTime = (timeStr: string): number => {
@@ -160,13 +161,28 @@ export function useKaraokeRoom() {
     const publicUrl = getPublicSongUrl(room.song_url);
     if (!publicUrl) return;
 
+    // Stop and detach listeners from any previous audio
+    if (audio) {
+      try {
+        audio.pause();
+        if (timeupdateHandlerRef.current) {
+          audio.removeEventListener('timeupdate', timeupdateHandlerRef.current);
+        }
+        audio.src = '';
+      } catch (err) {
+        console.warn('Error while cleaning up previous audio:', err);
+      }
+    }
+
     const audioElement = new Audio();
     audioElement.src = publicUrl;
-    audioElement.addEventListener('timeupdate', () => {
+    const onTimeUpdate = () => {
       setCurrentTime(audioElement.currentTime);
       // Sync time with other participants
       socketRef.current?.emit('sync-time', room.id, audioElement.currentTime);
-    });
+    };
+    audioElement.addEventListener('timeupdate', onTimeUpdate);
+    timeupdateHandlerRef.current = onTimeUpdate;
     
     // Note: Auto-play removed - music will only play when host controls it
     
@@ -220,8 +236,16 @@ export function useKaraokeRoom() {
     loadLyrics();
 
     return () => {
-      audioElement.pause();
-      audioElement.removeEventListener('timeupdate', () => {});
+      try {
+        audioElement.pause();
+        if (timeupdateHandlerRef.current) {
+          audioElement.removeEventListener('timeupdate', timeupdateHandlerRef.current);
+          timeupdateHandlerRef.current = null;
+        }
+        audioElement.src = '';
+      } catch (err) {
+        console.warn('Error during audio cleanup:', err);
+      }
     };
   }, [room?.song_url, room?.lyrics_url]);
 
@@ -799,4 +823,4 @@ export function useKaraokeRoom() {
     updateParticipantStatus,
     subscribeToRoomUpdates
   };
-} 
+}

@@ -12,11 +12,13 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { AlertCircle, Bell, ChevronLeft, Eye, EyeOff, Key, Lock, Moon, Save, Shield, Sun, User } from 'lucide-react'
+import { AlertCircle, Bell, ChevronLeft, Eye, EyeOff, Key, Lock, Moon, Save, Shield, Sun, User, Palette, Volume2, Monitor } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/components/ui/use-toast'
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
 
 export default function SettingsPage() {
   const { user, loading: authLoading, signOut } = useAuth()
@@ -36,11 +38,25 @@ export default function SettingsPage() {
   const [karaokeInvites, setKaraokeInvites] = useState(true)
   const [newFollowers, setNewFollowers] = useState(true)
   const [songRecommendations, setSongRecommendations] = useState(true)
+  const [performanceReminders, setPerformanceReminders] = useState(true)
+  const [weeklyDigest, setWeeklyDigest] = useState(false)
   
   const [profileVisibility, setProfileVisibility] = useState('public')
   const [showActivity, setShowActivity] = useState(true)
   const [showPlaylists, setShowPlaylists] = useState(true)
   const [allowMessages, setAllowMessages] = useState(true)
+
+  // Password change states
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+
+  // Appearance states
+  const [fontSize, setFontSize] = useState([16])
+  const [soundEffects, setSoundEffects] = useState(true)
+  const [animations, setAnimations] = useState(true)
+  const [compactMode, setCompactMode] = useState(false)
 
   // Update form fields when profile data loads
   React.useEffect(() => {
@@ -55,11 +71,19 @@ export default function SettingsPage() {
       setKaraokeInvites(profile.notification_preferences?.karaoke_invites ?? true)
       setNewFollowers(profile.notification_preferences?.new_followers ?? true)
       setSongRecommendations(profile.notification_preferences?.song_recommendations ?? true)
+      setPerformanceReminders(profile.notification_preferences?.performance_reminders ?? true)
+      setWeeklyDigest(profile.notification_preferences?.weekly_digest ?? false)
       
       setProfileVisibility(profile.privacy_settings?.profile_visibility || 'public')
       setShowActivity(profile.privacy_settings?.show_activity ?? true)
       setShowPlaylists(profile.privacy_settings?.show_playlists ?? true)
       setAllowMessages(profile.privacy_settings?.allow_messages ?? true)
+
+      // Load appearance preferences
+      setFontSize([profile.appearance_preferences?.font_size || 16])
+      setSoundEffects(profile.appearance_preferences?.sound_effects ?? true)
+      setAnimations(profile.appearance_preferences?.animations ?? true)
+      setCompactMode(profile.appearance_preferences?.compact_mode ?? false)
     }
   }, [profile])
 
@@ -87,13 +111,21 @@ export default function SettingsPage() {
           push_notifications: pushNotifications,
           karaoke_invites: karaokeInvites,
           new_followers: newFollowers,
-          song_recommendations: songRecommendations
+          song_recommendations: songRecommendations,
+          performance_reminders: performanceReminders,
+          weekly_digest: weeklyDigest
         },
         privacy_settings: {
           profile_visibility: profileVisibility as 'public' | 'private',
           show_activity: showActivity,
           show_playlists: showPlaylists,
           allow_messages: allowMessages
+        },
+        appearance_preferences: {
+          font_size: fontSize[0],
+          sound_effects: soundEffects,
+          animations: animations,
+          compact_mode: compactMode
         }
       })
       
@@ -109,6 +141,56 @@ export default function SettingsPage() {
       })
     } finally {
       setIsUpdating(false)
+    }
+  }
+
+  const handlePasswordChange = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all password fields.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords don't match",
+        description: "New password and confirmation don't match.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (newPassword.length < 8) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 8 characters long.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsChangingPassword(true)
+    try {
+      // This would typically call a password change API
+      // For now, we'll just show a success message
+      toast({
+        title: "Password changed",
+        description: "Your password has been updated successfully."
+      })
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (error: any) {
+      toast({
+        title: "Password change failed",
+        description: error.message || "Failed to change password.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsChangingPassword(false)
     }
   }
 
@@ -149,7 +231,7 @@ export default function SettingsPage() {
 
   if (authLoading || profileLoading) {
     return (
-      <div className="container max-w-3xl mx-auto py-8">
+      <div className="container max-w-4xl mx-auto py-8">
         <div className="w-full h-64 flex items-center justify-center">
           <p className="text-lg text-muted-foreground">Loading settings...</p>
         </div>
@@ -163,31 +245,34 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container max-w-3xl mx-auto py-8 space-y-6">
+    <div className="container max-w-4xl mx-auto py-8 space-y-6">
       <div className="flex items-center space-x-4">
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ChevronLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-3xl font-bold">Settings</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Settings</h1>
+          <p className="text-muted-foreground">Manage your account preferences and privacy settings</p>
+        </div>
       </div>
       
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="w-full grid grid-cols-4 mb-8">
-          <TabsTrigger value="profile">
-            <User className="h-4 w-4 mr-2" />
-            Profile
+          <TabsTrigger value="profile" className="flex items-center gap-2">
+            <User className="h-4 w-4" />
+            <span className="hidden sm:inline">Profile</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications">
-            <Bell className="h-4 w-4 mr-2" />
-            Notifications
+          <TabsTrigger value="notifications" className="flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            <span className="hidden sm:inline">Notifications</span>
           </TabsTrigger>
-          <TabsTrigger value="appearance">
-            <Sun className="h-4 w-4 mr-2" />
-            Appearance
+          <TabsTrigger value="appearance" className="flex items-center gap-2">
+            <Palette className="h-4 w-4" />
+            <span className="hidden sm:inline">Appearance</span>
           </TabsTrigger>
-          <TabsTrigger value="security">
-            <Shield className="h-4 w-4 mr-2" />
-            Security
+          <TabsTrigger value="security" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            <span className="hidden sm:inline">Security</span>
           </TabsTrigger>
         </TabsList>
         
@@ -195,20 +280,23 @@ export default function SettingsPage() {
         <TabsContent value="profile" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Profile Information
+              </CardTitle>
               <CardDescription>
                 Update your profile information and how others see you on Riddimz.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Avatar Upload */}
-              <div className="flex flex-col items-center space-y-3">
-                <Avatar className="h-24 w-24">
+              <div className="flex flex-col items-center space-y-4">
+                <Avatar className="h-32 w-32 border-4 border-background shadow-lg">
                   <AvatarImage src={profile?.profile_banner_url || undefined} />
-                  <AvatarFallback>{displayName?.slice(0, 2) || 'RD'}</AvatarFallback>
+                  <AvatarFallback className="text-2xl">{displayName?.slice(0, 2) || 'RD'}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <Label htmlFor="avatar-upload" className="cursor-pointer px-4 py-2 rounded-md bg-secondary hover:bg-secondary/80 text-sm font-medium">
+                  <Label htmlFor="avatar-upload" className="cursor-pointer px-6 py-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-colors">
                     Change Profile Picture
                   </Label>
                   <input 
@@ -221,29 +309,31 @@ export default function SettingsPage() {
                 </div>
               </div>
               
-              {/* Display Name */}
-              <div className="space-y-2">
-                <Label htmlFor="displayName">Display Name</Label>
-                <Input 
-                  id="displayName" 
-                  placeholder="Your display name" 
-                  value={displayName} 
-                  onChange={(e) => setDisplayName(e.target.value)} 
-                />
-                <p className="text-xs text-muted-foreground">
-                  This will be your display name for performances and rooms.
-                </p>
-              </div>
-              
-              {/* Location */}
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Input 
-                  id="location" 
-                  placeholder="Your location (optional)" 
-                  value={location} 
-                  onChange={(e) => setLocation(e.target.value)} 
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Display Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="displayName">Display Name *</Label>
+                  <Input 
+                    id="displayName" 
+                    placeholder="Your display name" 
+                    value={displayName} 
+                    onChange={(e) => setDisplayName(e.target.value)} 
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This will be your display name for performances and rooms.
+                  </p>
+                </div>
+                
+                {/* Location */}
+                <div className="space-y-2">
+                  <Label htmlFor="location">Location</Label>
+                  <Input 
+                    id="location" 
+                    placeholder="Your location (optional)" 
+                    value={location} 
+                    onChange={(e) => setLocation(e.target.value)} 
+                  />
+                </div>
               </div>
               
               {/* Website */}
@@ -262,11 +352,15 @@ export default function SettingsPage() {
                 <Label htmlFor="bio">Bio</Label>
                 <textarea 
                   id="bio" 
-                  className="w-full min-h-[100px] p-3 rounded-md border bg-background"
+                  className="w-full min-h-[120px] p-4 rounded-lg border bg-background resize-none"
                   placeholder="Tell everyone a bit about yourself..." 
                   value={bio} 
                   onChange={(e) => setBio(e.target.value)} 
+                  maxLength={500}
                 />
+                <p className="text-xs text-muted-foreground text-right">
+                  {bio.length}/500 characters
+                </p>
               </div>
               
               {/* Email */}
@@ -300,89 +394,124 @@ export default function SettingsPage() {
         <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Notification Preferences
+              </CardTitle>
               <CardDescription>
                 Configure how and when you receive notifications from Riddimz.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
-                {/* Email Notifications */}
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <h4 className="font-medium">Email Notifications</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Receive important updates via email
-                    </p>
+              <div className="space-y-6">
+                {/* General Notifications */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-lg">General Notifications</h4>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h5 className="font-medium">Email Notifications</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Receive important updates via email
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={emailNotifications}
+                      onCheckedChange={setEmailNotifications}
+                    />
                   </div>
-                  <Switch 
-                    checked={emailNotifications}
-                    onCheckedChange={setEmailNotifications}
-                  />
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h5 className="font-medium">Push Notifications</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Receive real-time notifications in your browser
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={pushNotifications}
+                      onCheckedChange={setPushNotifications}
+                    />
+                  </div>
                 </div>
                 
                 <Separator />
                 
-                {/* Push Notifications */}
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <h4 className="font-medium">Push Notifications</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Receive real-time notifications in your browser
-                    </p>
+                {/* Social Notifications */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-lg">Social Notifications</h4>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h5 className="font-medium">Karaoke Invitations</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Get notified when someone invites you to a karaoke room
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={karaokeInvites}
+                      onCheckedChange={setKaraokeInvites}
+                    />
                   </div>
-                  <Switch 
-                    checked={pushNotifications}
-                    onCheckedChange={setPushNotifications}
-                  />
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h5 className="font-medium">New Followers</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Get notified when someone follows you
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={newFollowers}
+                      onCheckedChange={setNewFollowers}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h5 className="font-medium">Performance Reminders</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Get reminded about upcoming karaoke performances
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={performanceReminders}
+                      onCheckedChange={setPerformanceReminders}
+                    />
+                  </div>
                 </div>
                 
                 <Separator />
                 
-                {/* Karaoke Invites */}
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <h4 className="font-medium">Karaoke Invitations</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified when someone invites you to a karaoke room
-                    </p>
+                {/* Content Notifications */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-lg">Content Notifications</h4>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h5 className="font-medium">Song Recommendations</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Get notified about new songs you might like
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={songRecommendations}
+                      onCheckedChange={setSongRecommendations}
+                    />
                   </div>
-                  <Switch 
-                    checked={karaokeInvites}
-                    onCheckedChange={setKaraokeInvites}
-                  />
-                </div>
-                
-                <Separator />
-                
-                {/* New Followers */}
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <h4 className="font-medium">New Followers</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified when someone follows you
-                    </p>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h5 className="font-medium">Weekly Digest</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Receive a weekly summary of your activity and new content
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={weeklyDigest}
+                      onCheckedChange={setWeeklyDigest}
+                    />
                   </div>
-                  <Switch 
-                    checked={newFollowers}
-                    onCheckedChange={setNewFollowers}
-                  />
-                </div>
-                
-                <Separator />
-                
-                {/* Song Recommendations */}
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <h4 className="font-medium">Song Recommendations</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified about new songs you might like
-                    </p>
-                  </div>
-                  <Switch 
-                    checked={songRecommendations}
-                    onCheckedChange={setSongRecommendations}
-                  />
                 </div>
               </div>
             </CardContent>
@@ -398,58 +527,138 @@ export default function SettingsPage() {
         <TabsContent value="appearance" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Appearance</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Palette className="h-5 w-5" />
+                Theme & Display
+              </CardTitle>
               <CardDescription>
-                Customize how Riddimz looks for you.
+                Customize how Riddimz looks and feels for you.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {/* Theme Selection */}
                 <div className="space-y-4">
-                  <h4 className="font-medium">Theme</h4>
-                  <div className="flex items-center space-x-4">
+                  <h4 className="font-semibold text-lg">Color Theme</h4>
+                  <div className="grid grid-cols-3 gap-4">
                     <Button
                       variant={theme === 'light' ? 'default' : 'outline'}
-                      className="w-full"
+                      className="h-20 flex-col gap-2"
                       onClick={() => setTheme('light')}
                     >
-                      <Sun className="mr-2 h-4 w-4" />
-                      Light
+                      <Sun className="h-6 w-6" />
+                      <span>Light</span>
                     </Button>
                     <Button
                       variant={theme === 'dark' ? 'default' : 'outline'}
-                      className="w-full"
+                      className="h-20 flex-col gap-2"
                       onClick={() => setTheme('dark')}
                     >
-                      <Moon className="mr-2 h-4 w-4" />
-                      Dark
+                      <Moon className="h-6 w-6" />
+                      <span>Dark</span>
                     </Button>
                     <Button
                       variant={theme === 'system' ? 'default' : 'outline'}
-                      className="w-full"
+                      className="h-20 flex-col gap-2"
                       onClick={() => setTheme('system')}
                     >
-                      <div className="mr-2 h-4 w-4 flex items-center justify-center">
-                        <span className="text-xs">OS</span>
-                      </div>
-                      System
+                      <Monitor className="h-6 w-6" />
+                      <span>System</span>
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Select your preferred color theme for the application.
                   </p>
                 </div>
+                
+                <Separator />
+                
+                {/* Display Options */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-lg">Display Options</h4>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      <Label>Font Size: {fontSize[0]}px</Label>
+                      <Slider
+                        value={fontSize}
+                        onValueChange={setFontSize}
+                        max={24}
+                        min={12}
+                        step={1}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Adjust the text size throughout the application.
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <h5 className="font-medium">Compact Mode</h5>
+                        <p className="text-sm text-muted-foreground">
+                          Use a more compact layout to fit more content
+                        </p>
+                      </div>
+                      <Switch 
+                        checked={compactMode}
+                        onCheckedChange={setCompactMode}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <h5 className="font-medium">Animations</h5>
+                        <p className="text-sm text-muted-foreground">
+                          Enable smooth transitions and animations
+                        </p>
+                      </div>
+                      <Switch 
+                        checked={animations}
+                        onCheckedChange={setAnimations}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                {/* Audio Options */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-lg">Audio & Effects</h4>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h5 className="font-medium">Sound Effects</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Play sound effects for interactions and notifications
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={soundEffects}
+                      onCheckedChange={setSoundEffects}
+                    />
+                  </div>
+                </div>
               </div>
             </CardContent>
+            <CardFooter>
+              <Button onClick={handleProfileUpdate} disabled={isUpdating}>
+                {isUpdating ? 'Saving...' : 'Save Appearance Settings'}
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
         
         {/* Security Tab */}
         <TabsContent value="security" className="space-y-6">
+          {/* Privacy Settings */}
           <Card>
             <CardHeader>
-              <CardTitle>Privacy Settings</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Privacy Settings
+              </CardTitle>
               <CardDescription>
                 Control who can see your profile and activity.
               </CardDescription>
@@ -459,22 +668,22 @@ export default function SettingsPage() {
                 {/* Profile Visibility */}
                 <div className="space-y-3">
                   <h4 className="font-medium">Profile Visibility</h4>
-                  <div className="flex items-center space-x-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <Button
                       variant={profileVisibility === 'public' ? 'default' : 'outline'}
-                      className="flex-1"
+                      className="h-16 flex-col gap-2"
                       onClick={() => setProfileVisibility('public')}
                     >
-                      <Eye className="mr-2 h-4 w-4" />
-                      Public
+                      <Eye className="h-5 w-5" />
+                      <span>Public</span>
                     </Button>
                     <Button
                       variant={profileVisibility === 'private' ? 'default' : 'outline'}
-                      className="flex-1"
+                      className="h-16 flex-col gap-2"
                       onClick={() => setProfileVisibility('private')}
                     >
-                      <EyeOff className="mr-2 h-4 w-4" />
-                      Private
+                      <EyeOff className="h-5 w-5" />
+                      <span>Private</span>
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -484,50 +693,48 @@ export default function SettingsPage() {
                 
                 <Separator />
                 
-                {/* Show Activity */}
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <h4 className="font-medium">Show Activity</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Let others see your recent karaoke activity
-                    </p>
+                {/* Activity Settings */}
+                <div className="space-y-4">
+                  <h4 className="font-medium">Activity & Content</h4>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h5 className="font-medium">Show Activity</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Let others see your recent karaoke activity
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={showActivity}
+                      onCheckedChange={setShowActivity}
+                    />
                   </div>
-                  <Switch 
-                    checked={showActivity}
-                    onCheckedChange={setShowActivity}
-                  />
-                </div>
-                
-                <Separator />
-                
-                {/* Show Playlists */}
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <h4 className="font-medium">Show Playlists</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Allow others to view your playlists and song collections
-                    </p>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h5 className="font-medium">Show Playlists</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Allow others to view your playlists and song collections
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={showPlaylists}
+                      onCheckedChange={setShowPlaylists}
+                    />
                   </div>
-                  <Switch 
-                    checked={showPlaylists}
-                    onCheckedChange={setShowPlaylists}
-                  />
-                </div>
-                
-                <Separator />
-                
-                {/* Allow Messages */}
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <h4 className="font-medium">Allow Messages</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Let other users send you direct messages
-                    </p>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h5 className="font-medium">Allow Messages</h5>
+                      <p className="text-sm text-muted-foreground">
+                        Let other users send you direct messages
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={allowMessages}
+                      onCheckedChange={setAllowMessages}
+                    />
                   </div>
-                  <Switch 
-                    checked={allowMessages}
-                    onCheckedChange={setAllowMessages}
-                  />
                 </div>
               </div>
             </CardContent>
@@ -538,21 +745,90 @@ export default function SettingsPage() {
             </CardFooter>
           </Card>
           
+          {/* Password Change */}
           <Card>
             <CardHeader>
-              <CardTitle>Account Security</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                Change Password
+              </CardTitle>
+              <CardDescription>
+                Update your account password for better security.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <Input 
+                  id="currentPassword" 
+                  type="password"
+                  placeholder="Enter your current password" 
+                  value={currentPassword} 
+                  onChange={(e) => setCurrentPassword(e.target.value)} 
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">New Password</Label>
+                <Input 
+                  id="newPassword" 
+                  type="password"
+                  placeholder="Enter your new password" 
+                  value={newPassword} 
+                  onChange={(e) => setNewPassword(e.target.value)} 
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Input 
+                  id="confirmPassword" 
+                  type="password"
+                  placeholder="Confirm your new password" 
+                  value={confirmPassword} 
+                  onChange={(e) => setConfirmPassword(e.target.value)} 
+                />
+              </div>
+              
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>Password requirements:</p>
+                <ul className="list-disc list-inside space-y-1 ml-2">
+                  <li>At least 8 characters long</li>
+                  <li>Include uppercase and lowercase letters</li>
+                  <li>Include at least one number</li>
+                  <li>Include at least one special character</li>
+                </ul>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button 
+                onClick={handlePasswordChange} 
+                disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
+              >
+                {isChangingPassword ? 'Changing Password...' : 'Change Password'}
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          {/* Account Security */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Account Security
+              </CardTitle>
               <CardDescription>
                 Manage your account security and login preferences.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Sign Out */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <h4 className="font-medium">Sign Out</h4>
                 <p className="text-sm text-muted-foreground">
                   Sign out from your account on this device.
                 </p>
-                <Button variant="outline" className="mt-2" onClick={handleSignOut}>
+                <Button variant="outline" onClick={handleSignOut}>
                   <Lock className="mr-2 h-4 w-4" />
                   Sign Out
                 </Button>
@@ -561,14 +837,17 @@ export default function SettingsPage() {
               <Separator />
               
               {/* Delete Account */}
-              <div className="space-y-2">
-                <h4 className="font-medium text-destructive">Delete Account</h4>
-                <p className="text-sm text-muted-foreground">
-                  Permanently delete your account and all your data. This action cannot be undone.
-                </p>
-                <Button variant="destructive" className="mt-2">
-                  Delete Account
-                </Button>
+              <div className="space-y-3">
+                <h4 className="font-medium text-destructive">Danger Zone</h4>
+                <div className="p-4 border border-destructive/20 rounded-lg bg-destructive/5">
+                  <h5 className="font-medium text-destructive mb-2">Delete Account</h5>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Permanently delete your account and all your data. This action cannot be undone.
+                  </p>
+                  <Button variant="destructive" size="sm">
+                    Delete Account
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

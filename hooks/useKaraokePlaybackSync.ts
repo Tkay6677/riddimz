@@ -11,20 +11,51 @@ interface UseKaraokePlaybackSyncProps {
   currentLyric?: string | null;
   lyrics?: Array<{ time: number; text: string }>;
   onVolumeChange?: (volumeType: 'music' | 'mic', volume: number) => void;
+  onRefresh?: () => void; // Soft refresh callback from parent
 }
 
 interface PlaybackEvent {
-  type: 'play' | 'pause' | 'seek' | 'sync' | 'lyrics' | 'volume';
+  type: 'play' | 'pause' | 'seek' | 'sync' | 'lyrics' | 'volume' | 'song' | 'refresh';
   time: number;
   userId: string;
   timestamp: number;
   lyric?: string;
   volumeType?: 'music' | 'mic';
   volume?: number;
+  songUrl?: string;
+  lyricsUrl?: string | null;
 }
 
-export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentLyric, lyrics, onVolumeChange }: UseKaraokePlaybackSyncProps) {
+export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentLyric, lyrics, onVolumeChange, onRefresh }: UseKaraokePlaybackSyncProps) {
   const channelRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Keep a ref to the latest audio element so broadcast handlers don't capture a stale one
+  useEffect(() => {
+    audioRef.current = audio || null;
+  }, [audio]);
+
+  // Ensure the audio element is ready before applying playback actions
+  const waitForAudioReady = (el: HTMLAudioElement) => {
+    return new Promise<void>((resolve) => {
+      if (!el) return resolve();
+      // HAVE_CURRENT_DATA (2) or higher indicates we can safely set currentTime
+      if (el.readyState >= 2) {
+        resolve();
+        return;
+      }
+      const onCanPlay = () => {
+        el.removeEventListener('canplay', onCanPlay);
+        resolve();
+      };
+      el.addEventListener('canplay', onCanPlay);
+      // Fallback resolve in case canplay doesn't fire quickly
+      setTimeout(() => {
+        try { el.removeEventListener('canplay', onCanPlay); } catch {}
+        resolve();
+      }, 1500);
+    });
+  };
 
   // Join Supabase Realtime channel for this room
   useEffect(() => {
@@ -36,19 +67,48 @@ export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentL
 
     // Listen for playback events from host
     channel.on('broadcast', { event: 'karaoke-playback' }, ({ payload }: { payload: PlaybackEvent }) => {
-      if (!audio || payload.userId === userId) return; // Don't react to own events
+      const el = audioRef.current;
+      if (!el || payload.userId === userId) return; // Don't react to own events
 
       console.log('[KaraokePlaybackSync] Received playback event:', payload);
 
       switch (payload.type) {
+        case 'refresh':
+          // Host requested participants to soft refresh the room (no page reload)
+          if (!isHost && typeof onRefresh === 'function') {
+            try {
+              onRefresh();
+            } catch (err) {
+              console.error('[KaraokePlaybackSync] Error soft refreshing participant:', err);
+            }
+          }
+          break;
+        case 'song':
+          // Host announced a new song. Update src immediately so participants don't rely solely on DB realtime.
+          if (payload.songUrl) {
+            try {
+              el.pause();
+              el.src = payload.songUrl;
+              el.load();
+              waitForAudioReady(el).then(() => {
+                el.currentTime = 0;
+              });
+            } catch (err) {
+              console.error('[KaraokePlaybackSync] Error switching song src:', err);
+            }
+          }
+          break;
         case 'play':
           console.log('[KaraokePlaybackSync] Playing audio at time:', payload.time);
           // Small delay to prevent audio interruption
           setTimeout(() => {
-            if (audio) {
-              audio.currentTime = payload.time;
-              audio.play().catch(err => {
-                console.error('[KaraokePlaybackSync] Error playing audio:', err);
+            const a = audioRef.current;
+            if (a) {
+              waitForAudioReady(a).then(() => {
+                a.currentTime = payload.time;
+                a.play().catch(err => {
+                  console.error('[KaraokePlaybackSync] Error playing audio:', err);
+                });
               });
             }
           }, 50);
@@ -57,9 +117,12 @@ export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentL
           console.log('[KaraokePlaybackSync] Pausing audio at time:', payload.time);
           // Small delay to prevent audio interruption
           setTimeout(() => {
-            if (audio) {
-              audio.currentTime = payload.time;
-              audio.pause();
+            const a = audioRef.current;
+            if (a) {
+              waitForAudioReady(a).then(() => {
+                a.currentTime = payload.time;
+                a.pause();
+              });
             }
           }, 50);
           break;
@@ -67,19 +130,25 @@ export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentL
           console.log('[KaraokePlaybackSync] Seeking to time:', payload.time);
           // Small delay to prevent audio interruption
           setTimeout(() => {
-            if (audio) {
-              audio.currentTime = payload.time;
+            const a = audioRef.current;
+            if (a) {
+              waitForAudioReady(a).then(() => {
+                a.currentTime = payload.time;
+              });
             }
           }, 50);
           break;
         case 'sync':
           // Less aggressive sync - only sync if there's a significant difference (more than 1 second)
-          if (Math.abs(audio.currentTime - payload.time) > 1.0) {
-            console.log('[KaraokePlaybackSync] Syncing audio time:', audio.currentTime, '->', payload.time);
+          if (audioRef.current && Math.abs(audioRef.current.currentTime - payload.time) > 1.0) {
+            console.log('[KaraokePlaybackSync] Syncing audio time:', audioRef.current?.currentTime ?? 0, '->', payload.time);
             // Small delay to prevent audio interruption
             setTimeout(() => {
-              if (audio) {
-                audio.currentTime = payload.time;
+              const a = audioRef.current;
+              if (a) {
+                waitForAudioReady(a).then(() => {
+                  a.currentTime = payload.time;
+                });
               }
             }, 50);
           }
@@ -127,6 +196,38 @@ export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentL
   };
 
   // Host: Control functions
+  const refreshRoom = () => {
+    if (!isHost || !channelRef.current) return;
+    const event: PlaybackEvent = {
+      type: 'refresh',
+      time: 0,
+      userId,
+      timestamp: Date.now()
+    };
+    console.log('[KaraokePlaybackSync] Emitting room refresh:', event);
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'karaoke-playback',
+      payload: event
+    });
+  };
+  const songChange = (songUrl: string, lyricsUrl?: string | null) => {
+    if (!isHost || !channelRef.current) return;
+    const event: PlaybackEvent = {
+      type: 'song',
+      time: 0,
+      userId,
+      timestamp: Date.now(),
+      songUrl,
+      lyricsUrl: lyricsUrl ?? null
+    };
+    console.log('[KaraokePlaybackSync] Emitting song change:', event);
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'karaoke-playback',
+      payload: event
+    });
+  };
   const play = () => {
     if (!isHost || !audio) return;
     console.log('[KaraokePlaybackSync] Host playing audio');
@@ -197,6 +298,8 @@ export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentL
 
   return {
     // Host controls
+    songChange,
+    refreshRoom,
     play,
     pause,
     seek,
@@ -207,4 +310,4 @@ export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentL
     // Utility function to emit custom events
     emitPlaybackEvent
   };
-} 
+}

@@ -55,12 +55,13 @@ export default function KaraokePage() {
             user_id
           )
         `)
+        .eq('status', 'active')
         .order('created_at', { ascending: false })
 
       if (activeFilter === 'live') {
         query = query.eq('is_live', true)
       } else if (activeFilter === 'trending') {
-        query = query.order('participants_count', { ascending: false })
+        // We'll sort by participant count on the client after fetching
       }
 
       const { data, error } = await query
@@ -68,14 +69,23 @@ export default function KaraokePage() {
       if (error) throw error
 
       if (data) {
-        // Transform the data to match our Room interface
-        const transformedRooms = data.map(room => ({
-          ...room,
-          participants_count: room.participants?.length || 0,
-          current_participants: room.current_participants || 0
-        })) as Room[]
+        // Prefer server-tracked current_participants; fallback to visible participants length (may be restricted by RLS)
+        const transformedRooms = data.map((room: any) => {
+          const count = typeof room.current_participants === 'number'
+            ? room.current_participants
+            : (Array.isArray(room.participants) ? room.participants.length : 0)
+          return {
+            ...room,
+            participants_count: count,
+            current_participants: count,
+          } as Room
+        })
+
+        const sortedRooms = activeFilter === 'trending'
+          ? transformedRooms.sort((a, b) => b.participants_count - a.participants_count)
+          : transformedRooms
         
-        setRooms(transformedRooms)
+        setRooms(sortedRooms)
       }
     } catch (error) {
       console.error('Error loading rooms:', error)
@@ -231,7 +241,7 @@ export default function KaraokePage() {
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center">
                     <Users className="h-4 w-4 mr-1" />
-                    {room.current_participants}
+                    {room.participants_count}
                   </div>
                   <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-1" />
