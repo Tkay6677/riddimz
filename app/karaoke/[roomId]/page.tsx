@@ -1202,7 +1202,7 @@ export default function KaraokeRoom() {
               
               <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent">
                 <div className="flex flex-col space-y-2">
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-white text-sm min-w-[40px]">{formatTime(currentTime)}</span>
                     <div 
                       className={`flex-1 h-2 bg-white/20 rounded-full overflow-hidden ${user?.id === room.host_id ? 'cursor-pointer' : 'cursor-default'}`}
@@ -1232,28 +1232,28 @@ export default function KaraokeRoom() {
                       {renderPlaybackControls()}
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center space-x-4">
-                      <Badge variant="secondary" className="text-sm flex items-center space-x-1">
+                    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 md:gap-4">
+                      <Badge variant="secondary" className="text-xs sm:text-sm px-2 py-1 flex items-center space-x-1">
                         <Music className="h-4 w-4" />
-                        <span>{isAudioPlaying ? 'Playing' : 'Paused'}</span>
+                        <span className="truncate">{isAudioPlaying ? 'Playing' : 'Paused'}</span>
                       </Badge>
-                      <Badge variant="outline" className="text-sm flex items-center space-x-1">
+                      <Badge variant="outline" className="text-xs sm:text-sm px-2 py-1 flex items-center space-x-1">
                         <Crown className="h-4 w-4" />
-                        <span>Host Controlled</span>
+                        <span className="truncate">Host Controlled</span>
                       </Badge>
-                      <Badge variant="default" className="text-sm flex items-center space-x-1 bg-green-600">
-                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
-                        <span>Synced</span>
+                      <Badge variant="default" className="text-xs sm:text-sm px-2 py-1 flex items-center space-x-1 bg-green-600">
+                        <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-1"></div>
+                        <span className="truncate">Synced</span>
                       </Badge>
-                      <Button
+                      {/* <Button
                         variant="outline"
                         size="sm"
-                        className="flex items-center space-x-2"
+                        className="flex items-center gap-2 text-xs md:text-sm min-w-0 px-2 py-1 sm:px-3 sm:py-2"
                         onClick={handleRequestSingPermission}
                       >
-                        <Mic className="h-4 w-4" />
-                        <span>Request to Sing</span>
-                      </Button>
+                        <Mic className="h-3 w-3 md:h-4 md:w-4" />
+                        <span className="truncate">Request to Sing</span>
+                      </Button> */}
                     </div>
                   )}
                 </div>
@@ -1265,7 +1265,7 @@ export default function KaraokeRoom() {
     <Button
       variant="ghost"
       size="icon"
-      className="fixed bottom-4 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 z-50"
+      className="fixed bottom-24 sm:bottom-20 right-4 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 z-50"
       onClick={() => setIsSidebarOpen(true)}
     >
       <MessageSquare className="h-6 w-6 text-white" />
@@ -1293,7 +1293,7 @@ export default function KaraokeRoom() {
               )}
 
               <div className="p-4 border-b flex items-center justify-between">
-                <div className="flex space-x-2">
+                {/* <div className="flex space-x-2">
                   <Button
                     variant={activePanel === 'chat' ? 'default' : 'ghost'}
                     size="sm"
@@ -1317,13 +1317,13 @@ export default function KaraokeRoom() {
                       Permissions
                     </Button>
                   )}
-                </div>
+                </div> */}
                 {isMobile && (
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsSidebarOpen(false)}>
                     <X className="h-4 w-4" />
                   </Button>
                 )}
-              </div>
+              </div> 
               
               <ScrollArea className="h-[calc(100vh-8rem)]">
                 <Tabs defaultValue="chat" className="w-full">
@@ -1342,12 +1342,12 @@ export default function KaraokeRoom() {
                         <span>Songs</span>
                       </TabsTrigger>
                     )}
-                    {user?.id === room.host_id && (
+                    {/* {user?.id === room.host_id && (
                       <TabsTrigger value="permissions" className="flex items-center space-x-2">
                         <Crown className="h-4 w-4" />
                         <span>Permissions</span>
                       </TabsTrigger>
-                    )}
+                    )} */}
                   </TabsList>
 
                   {/* Only show Songs tab content to host */}
@@ -1364,6 +1364,55 @@ export default function KaraokeRoom() {
                       </div>
                     </TabsContent>
                   )}
+                                   <TabsContent value="chat" className="h-[calc(100vh-8rem)]">
+                    <div className="flex flex-col h-full">
+                      <div className="flex-1 p-4 space-y-4">
+                        {localMessages.map((message) => (
+                          <div key={message.id} className="flex items-start space-x-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={message.user.avatar_url || undefined} alt={message.user.username} />
+                              <AvatarFallback>{message.user.username.slice(0, 2)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">{message.user.username}</p>
+                              <p className="text-sm">{message.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <form onSubmit={handleSendMessage} className="p-4 border-t">
+                        <div className="flex space-x-2">
+                          <Input 
+                            placeholder="Type a message..."
+                            value={chatMessage}
+                            onChange={(e) => setChatMessage(e.target.value)}
+                          />
+                          <Button type="submit" size="icon">
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </form>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="participants" className="h-[calc(100vh-8rem)]">
+                    <div className="p-4 space-y-4">
+                      {room.participants?.map((participant: any) => (
+                        <div key={participant.user.id} className="flex items-center space-x-3">
+                          <Avatar>
+                            <AvatarImage src={participant.user.avatar_url} alt={participant.user.username} />
+                            <AvatarFallback>{participant.user.username?.slice(0, 2) || 'U'}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{participant.user.username}</p>
+                            {participant.user.id === room.host_id && (
+                              <Badge variant="secondary" className="text-xs">Host</Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
                 </Tabs>
               </ScrollArea>
             </div>

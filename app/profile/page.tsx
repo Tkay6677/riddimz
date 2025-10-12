@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { 
   Edit2, User, Music, Mic, Award, Settings, 
   Upload, Calendar, Users, Clock, 
-  Heart, PlayCircle
+  MessageSquare, PlayCircle
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuth } from '@/hooks/useAuth'
@@ -276,6 +276,16 @@ export default function Profile() {
 
   const loadRoomStats = async () => {
     try {
+      // Always compute user's total performances regardless of hosting
+      const { data: userPerformanceData, error: userPerformanceError } = await supabase
+        .from('karaoke_performances')
+        .select('id')
+        .eq('user_id', user?.id)
+
+      if (userPerformanceError) throw userPerformanceError
+
+      const userPerformanceCount = userPerformanceData?.length ?? 0
+
       // Get all rooms hosted by the user
       const { data: rooms, error: roomsError } = await supabase
         .from('karaoke_rooms')
@@ -304,7 +314,7 @@ export default function Profile() {
 
         if (chatError) throw chatError
 
-        // Get performance counts for each room
+        // Get performance counts for each room (hosted rooms)
         const { data: performanceData, error: performanceError } = await supabase
           .from('karaoke_performances')
           .select('room_id, id')
@@ -336,8 +346,8 @@ export default function Profile() {
 
         setRoomStats(stats)
 
-        // Calculate total stats
-        const totals = stats.reduce((acc, room) => ({
+        // Calculate total stats (for hosted rooms)
+        const hostedTotals = stats.reduce((acc, room) => ({
           totalRoomsHosted: acc.totalRoomsHosted + 1,
           totalParticipants: acc.totalParticipants + room.participantCount,
           totalChatMessages: acc.totalChatMessages + room.chatCount,
@@ -351,7 +361,21 @@ export default function Profile() {
           totalSongsPerformed: 0
         })
 
-        setTotalStats(totals)
+        // Override songs performed with the user's actual performances across all rooms
+        setTotalStats({
+          ...hostedTotals,
+          totalSongsPerformed: userPerformanceCount,
+        })
+      } else {
+        // No hosted rooms, still show user's performance count
+        setRoomStats([])
+        setTotalStats({
+          totalRoomsHosted: 0,
+          totalParticipants: 0,
+          totalChatMessages: 0,
+          totalSessionTime: 0,
+          totalSongsPerformed: userPerformanceCount,
+        })
       }
     } catch (error: any) {
       toast({
@@ -672,7 +696,7 @@ export default function Profile() {
                               <span>{room.participantCount}</span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <Heart className="h-3 w-3" />
+                              <MessageSquare className="h-3 w-3" />
                               <span>{room.chatCount}</span>
                             </div>
                             <div className="flex items-center gap-1">
