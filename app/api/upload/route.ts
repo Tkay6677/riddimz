@@ -2,6 +2,13 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
+function sanitizeFileName(name: string) {
+  return name
+    .normalize('NFKD')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_+/g, '_');
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
@@ -22,33 +29,36 @@ export async function POST(request: Request) {
     const lyricsData = formData.get('lyricsData') as string;
 
     if (type === 'song') {
-      // Upload song audio
-      const { data: audioData, error: audioError } = await supabase.storage
-        .from('songs')
-        .upload(`${session.user.id}/${Date.now()}-${audioFile.name}`, audioFile);
+      // Upload song audio to karaoke-songs bucket
+      const audioSafe = sanitizeFileName(audioFile.name);
+      const audioPath = `${session.user.id}/${Date.now()}_${audioSafe}`;
+      const { error: audioError } = await supabase.storage
+        .from('karaoke-songs')
+        .upload(audioPath, audioFile);
 
       if (audioError) throw audioError;
 
-      // Upload cover art if provided
-      let coverArtUrl = null;
+      // Upload cover art if provided to karaoke-songs bucket
+      let coverPath: string | null = null;
       if (coverArt) {
-        const { data: coverData, error: coverError } = await supabase.storage
-          .from('covers')
-          .upload(`${session.user.id}/${Date.now()}-${coverArt.name}`, coverArt);
+        const coverSafe = sanitizeFileName(coverArt.name);
+        coverPath = `${session.user.id}/${Date.now()}_${coverSafe}`;
+        const { error: coverError } = await supabase.storage
+          .from('karaoke-songs')
+          .upload(coverPath, coverArt);
 
         if (coverError) throw coverError;
-        coverArtUrl = supabase.storage.from('covers').getPublicUrl(coverData.path).data.publicUrl;
       }
 
-      // Create song record
+      // Create song record storing storage paths
       const { data: song, error: songError } = await supabase
         .from('songs')
         .insert({
           title,
           artist,
           duration,
-          audio_url: supabase.storage.from('songs').getPublicUrl(audioData.path).data.publicUrl,
-          cover_art_url: coverArtUrl,
+          audio_url: audioPath,
+          cover_url: coverPath,
           user_id: session.user.id
         })
         .select()
@@ -58,19 +68,21 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ song });
     } else if (type === 'karaoke') {
-      // Upload karaoke instrumental
-      const { data: instrumentalData, error: instrumentalError } = await supabase.storage
-        .from('karaoke')
-        .upload(`${session.user.id}/${Date.now()}-${audioFile.name}`, audioFile);
+      // Upload karaoke instrumental to karaoke-songs
+      const instrumentalSafe = sanitizeFileName(audioFile.name);
+      const instrumentalPath = `${session.user.id}/${Date.now()}_${instrumentalSafe}`;
+      const { error: instrumentalError } = await supabase.storage
+        .from('karaoke-songs')
+        .upload(instrumentalPath, audioFile);
 
       if (instrumentalError) throw instrumentalError;
 
-      // Create karaoke track record
+      // Create karaoke track record storing storage path
       const { data: track, error: trackError } = await supabase
         .from('karaoke_tracks')
         .insert({
           song_id: songId,
-          instrumental_url: supabase.storage.from('karaoke').getPublicUrl(instrumentalData.path).data.publicUrl,
+          instrumental_url: instrumentalPath,
           lyrics_data: lyricsData ? JSON.parse(lyricsData) : null
         })
         .select()
@@ -88,4 +100,4 @@ export async function POST(request: Request) {
   }
 }
 
-export const runtime = 'nodejs'; 
+export const runtime = 'nodejs';

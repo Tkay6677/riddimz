@@ -11,13 +11,16 @@ import { Separator } from '@/components/ui/separator'
 import { 
   Edit2, User, Music, Mic, Award, Settings, 
   Upload, Calendar, Users, Clock, 
-  MessageSquare, PlayCircle
+  MessageSquare, PlayCircle, Crown
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast, toast as globalToast } from '@/components/ui/use-toast'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useCreatorUpgrade } from '@/hooks/useCreatorUpgrade'
+import { useWallet } from '@solana/wallet-adapter-react'
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 
 // Mock data
 const nfts = [
@@ -124,6 +127,11 @@ export default function Profile() {
   const supabase = createClientComponentClient()
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
+  // Creator upgrade hooks and state
+  const { mintCreatorNft, checkIsCreator, minting, lastMintAddress } = useCreatorUpgrade()
+  const { connected } = useWallet()
+  const [isCreator, setIsCreator] = useState(false)
+
   useEffect(() => {
     if (user && isInitialLoad) {
       loadUserProfile()
@@ -134,6 +142,32 @@ export default function Profile() {
       setIsInitialLoad(false)
     }
   }, [user, isInitialLoad])
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const creator = await checkIsCreator()
+        setIsCreator(creator)
+      } catch (e) {
+        console.warn('Creator status check failed', e)
+      }
+    }
+    checkStatus()
+  }, [checkIsCreator])
+
+  const handleMintCreator = async () => {
+    try {
+      if (!connected) {
+        globalToast({ title: 'Connect Wallet', description: 'Please connect your Solana wallet first.' })
+        return
+      }
+      const mintAddr = await mintCreatorNft()
+      setIsCreator(true)
+      globalToast({ title: 'Creator NFT Minted', description: `Mint address: ${mintAddr}` })
+    } catch (e: any) {
+      globalToast({ variant: 'destructive', title: 'Mint failed', description: e?.message || 'Could not mint NFT' })
+    }
+  }
 
   const loadUserProfile = async () => {
     try {
@@ -482,6 +516,43 @@ export default function Profile() {
                   {userProfile.email}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Creator Upgrade */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-yellow-500" />
+                Creator Upgrade
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Mint the Riddimz Creator NFT to unlock creator features.
+              </p>
+              {isCreator ? (
+                <div className="text-sm">
+                  <span className="inline-flex items-center rounded-full bg-green-600/15 text-green-700 px-2 py-1">
+                    Creator enabled
+                  </span>
+                  {lastMintAddress && (
+                    <div className="mt-2 text-xs break-all">NFT: {lastMintAddress}</div>
+                  )}
+                  <div className="mt-3 flex items-center justify-center">
+                    <Image src="/riddimz-logo.jpg" alt="Creator NFT" width={64} height={64} className="rounded" />
+                  </div>
+                </div>
+              ) : connected ? (
+                <Button className="w-full" onClick={handleMintCreator} disabled={minting}>
+                  {minting ? 'Minting…' : 'Mint Creator NFT'}
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <WalletMultiButton className="w-full" />
+                  <p className="text-xs text-muted-foreground">Connect your wallet to mint the Creator NFT.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
           

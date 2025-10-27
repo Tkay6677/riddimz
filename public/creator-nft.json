@@ -1,0 +1,16 @@
+{
+  "name": "Riddimz Creator",
+  "symbol": "RIDCREATOR",
+  "description": "Official Riddimz Creator badge NFT. Grants creator features on the platform.",
+  "image": "/riddimz-logo.jpg",
+  "attributes": [
+    { "trait_type": "Role", "value": "Creator" },
+    { "trait_type": "Platform", "value": "Riddimz" }
+  ],
+  "properties": {
+    "files": [
+      { "uri": "/riddimz-logo.jpg", "type": "image/jpeg" }
+    ],
+    "category": "image"
+  }
+}

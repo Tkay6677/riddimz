@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { 
@@ -73,6 +73,19 @@ export default function KaraokeRoom() {
   const [selectedSongId, setSelectedSongId] = useState<string | undefined>(undefined)
   const [selectedSong, setSelectedSong] = useState<any | null>(null)
   const [songQueue, setSongQueue] = useState<any[]>([])
+  
+  // Dedupe room participants by normalized display name with fallback to id
+  const dedupedRoomParticipants = useMemo(() => {
+    const byIdentity = new Map<string, any>();
+    const list = (room as any)?.participants || [];
+    for (const p of list) {
+      const nameKey = String(p?.user?.username || p?.user?.name || "").trim().toLowerCase();
+      const idKey = String(p?.user?.id ?? p?.user_id ?? p?.id ?? "").toLowerCase();
+      const key = nameKey || idKey;
+      if (!byIdentity.has(key)) byIdentity.set(key, p);
+    }
+    return Array.from(byIdentity.values());
+  }, [room?.participants])
   
   // Volume state for host controls
   const [musicVolume, setMusicVolume] = useState(0.6)
@@ -1397,7 +1410,7 @@ export default function KaraokeRoom() {
                   
                   <TabsContent value="participants" className="h-[calc(100vh-8rem)]">
                     <div className="p-4 space-y-4">
-                      {room.participants?.map((participant: any) => (
+                      {dedupedRoomParticipants?.map((participant: any) => (
                         <div key={participant.user.id} className="flex items-center space-x-3">
                           <Avatar>
                             <AvatarImage src={participant.user.avatar_url} alt={participant.user.username} />

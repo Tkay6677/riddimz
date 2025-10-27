@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Search, Menu, X, Bell, User, LogOut } from 'lucide-react'
+import { Search, Menu, X, Bell, User, LogOut, Podcast, Store } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { 
@@ -171,6 +171,17 @@ const Header = () => {
                 </svg>
                 Library
               </Link>
+              <Link 
+                href="/marketplace" 
+                onClick={handleNavClick}
+                className={cn(
+                  "px-3 py-2 rounded-md flex items-center",
+                  pathname === "/marketplace" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
+                )}
+              >
+                <Store className="mr-2 h-4 w-4" />
+                Marketplace
+              </Link>
             </div>
             
             <div className="pt-2">
@@ -205,6 +216,17 @@ const Header = () => {
                   <line x1="8" y1="23" x2="16" y2="23"/>
                 </svg>
                 Karaoke
+              </Link>
+              <Link 
+                href="/podcast" 
+                onClick={handleNavClick}
+                className={cn(
+                  "px-3 py-2 rounded-md flex items-center",
+                  pathname === "/podcast" ? "bg-primary/10 text-primary" : "text-foreground hover:bg-secondary"
+                )}
+              >
+                <Podcast className="mr-2 h-4 w-4" />
+                Podcast
               </Link>
             </div>
             

@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Home, Music, Mic, Heart, Radio, User, Library, Plus, Crown, Award, Disc } from 'lucide-react'
+import { Home, Music, Mic, Heart, Radio, User, Library, Plus, Crown, Award, Disc, Podcast, Store } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { ModeToggle } from '@/components/mode-toggle'
@@ -84,6 +84,7 @@ export function Sidebar() {
             <NavItem href="/discover" icon={Radio} label={isCollapsed ? "" : "Discover"} />
             {/*<NavItem href="/home" icon={Home} label={isCollapsed ? "" : "Home"} />*/}
             <NavItem href="/library" icon={Library} label={isCollapsed ? "" : "Library"} />
+            <NavItem href="/marketplace" icon={Store} label={isCollapsed ? "" : "Marketplace"} />
           </div>
 
           {!isCollapsed && <Separator />}
@@ -97,6 +98,7 @@ export function Sidebar() {
             </h3>
             <NavItem href="/music" icon={Music} label={isCollapsed ? "" : "Music"} />
             <NavItem href="/karaoke" icon={Mic} label={isCollapsed ? "" : "Karaoke"} />
+            <NavItem href="/podcast" icon={Podcast} label={isCollapsed ? "" : "Podcast"} />
             {/*<NavItem href="/albums" icon={Disc} label={isCollapsed ? "" : "Albums"} />*/}
           </div>
 

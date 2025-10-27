@@ -3,6 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   images: {
     domains: ['localhost', 'images.pexels.com', 'kvzicstyhxgiyewfsbqw.supabase.co'],
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.supabase.co' },
+    ],
   },
   webpack: (config) => {
     config.externals.push({
@@ -13,4 +16,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

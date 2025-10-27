@@ -62,10 +62,10 @@ export function useAuth() {
         // Connect to Phantom wallet first
         await window.solana.connect();
         
-        // Use Supabase's built-in Web3 authentication
+        // Use Supabase's built-in Web3 authentication with proper URI
         const { data, error } = await supabase.auth.signInWithWeb3({
           chain: 'solana',
-          statement: 'I accept the Terms of Service and agree to sign in to Riddimz with my Solana wallet.',
+          statement: `I accept the Terms of Service at ${window.location.origin} and agree to sign in to Riddimz with my Solana wallet.`,
         });
         
         if (error) throw error;
@@ -101,4 +101,4 @@ export function useAuth() {
     signInWithWallet,
     signOut
   }), [user, loading]);
-} 
+}
