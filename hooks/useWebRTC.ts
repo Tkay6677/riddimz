@@ -179,6 +179,32 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean, songU
               console.log('[useWebRTC] Host permissions granted for', userId);
               console.log('[useWebRTC] Own capabilities after grant:', callInstance.state.ownCapabilities);
               console.log('[useWebRTC] Host joined successfully - microphone will be enabled on user interaction');
+              // Broadcast host wallet address (if available) so participants can tip
+              try {
+                let hostWalletAddress: string | undefined;
+                try {
+                  const supabase = getSupabaseClient();
+                  const { data: { user: authUser } } = await supabase.auth.getUser();
+                  hostWalletAddress =
+                    (authUser?.user_metadata as any)?.wallet_address ||
+                    (authUser?.user_metadata as any)?.publicKey ||
+                    undefined;
+                } catch {}
+                if (!hostWalletAddress && typeof window !== 'undefined') {
+                  const sol = (window as any)?.solana;
+                  try {
+                    if (sol?.publicKey?.toBase58) {
+                      hostWalletAddress = sol.publicKey.toBase58();
+                    } else if (sol?.publicKey?.toString) {
+                      hostWalletAddress = sol.publicKey.toString();
+                    }
+                  } catch {}
+                }
+                const prevCustom: any = (callInstance.state as any)?.custom || {};
+                await callInstance.update({ custom: { ...prevCustom, hostWalletAddress } });
+              } catch (e) {
+                console.warn('[useWebRTC] Failed to broadcast hostWalletAddress', e);
+              }
             } else {
               await callInstance.revokePermissions(userId, ['send-audio', 'send-video']);
               console.log('Participant permissions revoked');
@@ -495,6 +521,42 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean, songU
       call.off('call.updated', handleCallUpdated);
     };
   }, [call]);
+
+  // Host-side fallback: ensure hostWalletAddress is set in call.custom
+  useEffect(() => {
+    if (!call || !isHost) return;
+    const trySetHostWallet = async () => {
+      try {
+        const currentCustom: any = (call.state as any)?.custom || {};
+        if (currentCustom.hostWalletAddress) return;
+
+        let hostWalletAddress: string | undefined;
+        try {
+          const supabase = getSupabaseClient();
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          hostWalletAddress =
+            (authUser?.user_metadata as any)?.wallet_address ||
+            (authUser?.user_metadata as any)?.publicKey ||
+            undefined;
+        } catch {}
+        if (!hostWalletAddress && typeof window !== 'undefined') {
+          const sol = (window as any)?.solana;
+          try {
+            if (sol?.publicKey?.toBase58) {
+              hostWalletAddress = sol.publicKey.toBase58();
+            } else if (sol?.publicKey?.toString) {
+              hostWalletAddress = sol.publicKey.toString();
+            }
+          } catch {}
+        }
+        if (!hostWalletAddress) return;
+        await call.update({ custom: { ...currentCustom, hostWalletAddress } });
+      } catch (e) {
+        console.warn('[useWebRTC] Fallback broadcast of hostWalletAddress failed', e);
+      }
+    };
+    trySetHostWallet();
+  }, [call, isHost]);
 
   // Debug function to log comprehensive audio information
   const debugAudioInfo = () => {

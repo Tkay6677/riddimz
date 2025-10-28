@@ -29,6 +29,7 @@ import {
   Copy,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase-client";
+import GiftHost from "@/components/GiftHost";
 
 export default function PodcastRoomPage() {
   const { roomId } = useParams();
@@ -240,6 +241,8 @@ export default function PodcastRoomPage() {
   }, [uniqueParticipants, hostId, call, allowedSpeakers, effectiveUserId]);
 
   const listenerCount = listeners.length;
+  // Gift tipping panel visibility
+  const [showGift, setShowGift] = useState(false);
 
   const [showReactions, setShowReactions] = useState(false);
   const [localReactions, setLocalReactions] = useState<{ [emoji: string]: number }>({});
@@ -303,29 +306,43 @@ export default function PodcastRoomPage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>{elapsed}</span>
-                </div>
-                <Separator orientation="vertical" className="h-6" />
-                <div className="flex items-center gap-1 text-sm">
-                  <Users className="h-4 w-4" />
-                  <span>{listenerCount + speakers.length}</span>
-                </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={copyInviteLink}>
-                        <Share2 className="h-4 w-4 mr-2" /> Invite
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Copy room link</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                <span>{elapsed}</span>
               </div>
+              <Separator orientation="vertical" className="h-6" />
+              <div className="flex items-center gap-1 text-sm">
+                <Users className="h-4 w-4" />
+                <span>{listenerCount + speakers.length}</span>
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={copyInviteLink}>
+                      <Share2 className="h-4 w-4 mr-2" /> Invite
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy room link</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <Button variant="default" size="sm" onClick={() => setShowGift(true)}>
+                Send Gift
+              </Button>
             </div>
-          </Card>
+          </div>
+        </Card>
+
+        {showGift && (
+          <div className="fixed top-20 right-6 z-50">
+            <GiftHost
+              recipientAddress={((call?.state as any)?.custom?.hostWalletAddress as string) || null}
+              recipientName={profiles[hostId || ""]?.name || "Host"}
+              onClose={() => setShowGift(false)}
+              onSuccess={() => setShowGift(false)}
+            />
+          </div>
+        )}
 
           {/* Stage: speakers */}
           <Card className="p-6">
