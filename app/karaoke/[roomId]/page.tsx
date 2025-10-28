@@ -276,6 +276,7 @@ export default function KaraokeRoom() {
     isHostAudioDetected,
     participantConnectionStatus,
     debugAudioInfo,
+    hostWalletAddress,
   } = useWebRTC(roomId, user?.id || '', user?.id === room?.host_id, room?.song_url ?? undefined)
   const chatRef = useRef<HTMLDivElement>(null)
   
@@ -1188,7 +1189,7 @@ export default function KaraokeRoom() {
               {showGift && (
                 <div className="absolute top-16 right-4 z-50">
                   <GiftHost
-                    recipientAddress={((call?.state as any)?.custom?.hostWalletAddress as string) || null}
+                    recipientAddress={hostWalletAddress || (((call?.state as any)?.custom?.hostWalletAddress as string) || null)}
                     recipientName={'Host'}
                     onClose={() => setShowGift(false)}
                     onSuccess={() => setShowGift(false)}

@@ -5,6 +5,7 @@ import {
   OwnCapability, 
   PermissionRequestEvent,
 } from '@stream-io/video-react-sdk';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { getSupabaseClient } from '@/lib/supabase-client';
 
 interface UseWebRTCReturn {
@@ -34,9 +35,12 @@ interface UseWebRTCReturn {
   debugAudioInfo: () => void;
   // Granted speakers propagated via call.custom
   allowedSpeakers: string[];
+  // Host wallet address propagated via call.custom and wallet adapter
+  hostWalletAddress: string | null;
 }
 
 export function useWebRTC(roomId: string, userId: string, isHost: boolean, songUrl?: string): UseWebRTCReturn {
+  const { publicKey, connected } = useWallet();
   const [videoClient, setVideoClient] = useState<StreamVideoClient | null>(null);
   const [call, setCall] = useState<Call | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -60,6 +64,8 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean, songU
   const [allowedSpeakers, setAllowedSpeakers] = useState<string[]>([]);
   const allowedSpeakersRef = useRef<string[]>([]);
   useEffect(() => { allowedSpeakersRef.current = allowedSpeakers; }, [allowedSpeakers]);
+  // Host wallet address propagated via call.custom
+  const [hostWalletAddress, setHostWalletAddress] = useState<string | null>(null);
   // Track host flag without re-running effects
   const isHostRef = useRef<boolean>(isHost);
   useEffect(() => { isHostRef.current = isHost; }, [isHost]);
@@ -202,6 +208,7 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean, songU
                 }
                 const prevCustom: any = (callInstance.state as any)?.custom || {};
                 await callInstance.update({ custom: { ...prevCustom, hostWalletAddress } });
+                if (hostWalletAddress) setHostWalletAddress(hostWalletAddress);
               } catch (e) {
                 console.warn('[useWebRTC] Failed to broadcast hostWalletAddress', e);
               }
@@ -419,6 +426,9 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean, songU
         const nextAllowed = Array.isArray(custom.allowedSpeakers) ? custom.allowedSpeakers : [];
         setAllowedSpeakers(nextAllowed);
       }
+      if (typeof custom?.hostWalletAddress === 'string') {
+        setHostWalletAddress(custom.hostWalletAddress || null);
+      }
       
       // Enhanced participant monitoring
       const participants = call.state.participants;
@@ -504,6 +514,9 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean, songU
     // Log initial state
     const initialCustom: any = (call.state as any)?.custom || {};
     setAllowedSpeakers(Array.isArray(initialCustom.allowedSpeakers) ? initialCustom.allowedSpeakers : []);
+    if (typeof initialCustom.hostWalletAddress === 'string') {
+      setHostWalletAddress(initialCustom.hostWalletAddress || null);
+    }
     console.log('Initial call state:', {
       participants: call.state.participants.map(p => ({
         id: p.userId,
@@ -551,12 +564,25 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean, songU
         }
         if (!hostWalletAddress) return;
         await call.update({ custom: { ...currentCustom, hostWalletAddress } });
+        setHostWalletAddress(hostWalletAddress || null);
       } catch (e) {
         console.warn('[useWebRTC] Fallback broadcast of hostWalletAddress failed', e);
       }
     };
     trySetHostWallet();
   }, [call, isHost]);
+
+  // Host wallet adapter sync: propagate when host connects or changes wallet
+  useEffect(() => {
+    if (!call || !isHost) return;
+    const nextAddr = publicKey?.toBase58?.() || undefined;
+    if (!connected || !nextAddr) return;
+    const currentCustom: any = (call.state as any)?.custom || {};
+    if (currentCustom.hostWalletAddress === nextAddr) return;
+    call.update({ custom: { ...currentCustom, hostWalletAddress: nextAddr } })
+      .catch(e => console.warn('[useWebRTC] Wallet-adapter sync of hostWalletAddress failed', e));
+    setHostWalletAddress(nextAddr);
+  }, [call, isHost, connected, publicKey]);
 
   // Debug function to log comprehensive audio information
   const debugAudioInfo = () => {
@@ -953,5 +979,7 @@ export function useWebRTC(roomId: string, userId: string, isHost: boolean, songU
     debugAudioInfo,
     // Granted speakers exposed to UI
     allowedSpeakers,
+    // Host wallet address for tipping
+    hostWalletAddress,
   };
 }
