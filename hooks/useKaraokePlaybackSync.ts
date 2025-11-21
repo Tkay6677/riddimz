@@ -84,9 +84,11 @@ export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentL
           }
           break;
         case 'song':
-          // Host announced a new song. Update src immediately so participants don't rely solely on DB realtime.
-          if (payload.songUrl) {
+          // In listen-only design, participants do NOT auto-play local audio.
+          // We still update the src so metadata/lyrics loaders can reference it.
+          if (!isHost && payload.songUrl) {
             try {
+              // Do not auto-play; just prepare the element.
               el.pause();
               el.src = payload.songUrl;
               el.load();
@@ -94,55 +96,59 @@ export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentL
                 el.currentTime = 0;
               });
             } catch (err) {
-              console.error('[KaraokePlaybackSync] Error switching song src:', err);
+              console.error('[KaraokePlaybackSync] Error switching song src (participant):', err);
             }
           }
           break;
         case 'play':
-          console.log('[KaraokePlaybackSync] Playing audio at time:', payload.time);
-          // Small delay to prevent audio interruption
-          setTimeout(() => {
-            const a = audioRef.current;
-            if (a) {
-              waitForAudioReady(a).then(() => {
-                a.currentTime = payload.time;
-                a.play().catch(err => {
-                  console.error('[KaraokePlaybackSync] Error playing audio:', err);
+          // Participants no longer play local audio; they receive the host stream.
+          if (isHost) {
+            // Defensive: host never receives own event due to userId check above
+            // but keep branch for clarity.
+            setTimeout(() => {
+              const a = audioRef.current;
+              if (a) {
+                waitForAudioReady(a).then(() => {
+                  a.currentTime = payload.time;
+                  a.play().catch(err => {
+                    console.error('[KaraokePlaybackSync] Error playing audio (host):', err);
+                  });
                 });
-              });
-            }
-          }, 50);
+              }
+            }, 50);
+          }
           break;
         case 'pause':
-          console.log('[KaraokePlaybackSync] Pausing audio at time:', payload.time);
-          // Small delay to prevent audio interruption
-          setTimeout(() => {
-            const a = audioRef.current;
-            if (a) {
-              waitForAudioReady(a).then(() => {
-                a.currentTime = payload.time;
-                a.pause();
-              });
-            }
-          }, 50);
+          // Participants do not control local audio playback.
+          if (isHost) {
+            setTimeout(() => {
+              const a = audioRef.current;
+              if (a) {
+                waitForAudioReady(a).then(() => {
+                  a.currentTime = payload.time;
+                  a.pause();
+                });
+              }
+            }, 50);
+          }
           break;
         case 'seek':
-          console.log('[KaraokePlaybackSync] Seeking to time:', payload.time);
-          // Small delay to prevent audio interruption
-          setTimeout(() => {
-            const a = audioRef.current;
-            if (a) {
-              waitForAudioReady(a).then(() => {
-                a.currentTime = payload.time;
-              });
-            }
-          }, 50);
+          // Participants do not seek local audio.
+          if (isHost) {
+            setTimeout(() => {
+              const a = audioRef.current;
+              if (a) {
+                waitForAudioReady(a).then(() => {
+                  a.currentTime = payload.time;
+                });
+              }
+            }, 50);
+          }
           break;
         case 'sync':
-          // Less aggressive sync - only sync if there's a significant difference (more than 1 second)
-          if (audioRef.current && Math.abs(audioRef.current.currentTime - payload.time) > 1.0) {
-            console.log('[KaraokePlaybackSync] Syncing audio time:', audioRef.current?.currentTime ?? 0, '->', payload.time);
-            // Small delay to prevent audio interruption
+          // Participants ignore time sync for local audio in listen-only mode.
+          if (isHost && audioRef.current && Math.abs(audioRef.current.currentTime - payload.time) > 1.0) {
+            console.log('[KaraokePlaybackSync] Syncing host audio time:', audioRef.current?.currentTime ?? 0, '->', payload.time);
             setTimeout(() => {
               const a = audioRef.current;
               if (a) {
@@ -154,11 +160,11 @@ export function useKaraokePlaybackSync({ roomId, isHost, audio, userId, currentL
           }
           break;
         case 'lyrics':
-          // Lyrics sync - this will be handled by the parent component
+          // Lyrics sync - handled by parent; participants rely on this for lyric progression.
           console.log('[KaraokePlaybackSync] Received lyrics sync:', payload.lyric);
           break;
         case 'volume':
-          // Volume control - this will be handled by the parent component
+          // Volume control - handled by parent UI/state.
           console.log('[KaraokePlaybackSync] Received volume change:', payload.volumeType, payload.volume);
           if (onVolumeChange) {
             onVolumeChange(payload.volumeType!, payload.volume!);

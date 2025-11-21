@@ -7,21 +7,28 @@ import { getSupabaseClient } from "@/lib/supabase-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { Connection, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { MarketplaceHeader } from "@/components/marketplace/MarketplaceHeader";
+import { NFTCard } from "@/components/marketplace/NFTCard";
+import { NFTDetailModal } from "@/components/marketplace/NFTDetailModal";
+import { CollectionStats } from "@/components/marketplace/CollectionStats";
+import { Play, Pause } from "lucide-react";
 
 interface SongRow {
   id: string;
   title: string;
   artist: string;
-  is_nft: boolean | null;
+  is_nft: boolean;
   audio_url: string | null;
-  cover_url?: string | null;
-  cover_art_url?: string | null;
-  nft_metadata_uri?: string | null;
-  created_at?: string | null;
+  cover_url: string | null;
+  cover_art_url: string | null;
+  nft_metadata_uri: string | null;
+  created_at: string;
 }
 
 function useNftSongs() {
-  const supabase = useMemo(() => getSupabaseClient(), []);
   const [songs, setSongs] = useState<SongRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +36,7 @@ function useNftSongs() {
   const [hasMore, setHasMore] = useState(true);
   const pageSize = 12;
   const pageRef = useRef(0);
+  const supabase = useMemo(() => getSupabaseClient(), []);
 
   const loadPage = async (page: number) => {
     const from = page * pageSize;
@@ -102,6 +110,174 @@ export default function MarketplacePage() {
   const { songs, loading, error, hasMore, loadingMore, loadMore } = useNftSongs();
   const [metadataImages, setMetadataImages] = useState<Record<string, string>>({});
   const metadataCacheRef = useRef<Map<string, string>>(new Map());
+  const supabase = useMemo(() => getSupabaseClient(), []);
+  const { publicKey, sendTransaction, connected } = useWallet();
+  const [buying, setBuying] = useState<string | null>(null);
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("recent");
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [selectedItem, setSelectedItem] = useState<{
+    id: string;
+    title: string;
+    artist: string;
+    coverUrl: string;
+    audioUrl?: string | null;
+    price?: number;
+    currency?: string;
+    isListed?: boolean;
+    metadataUri?: string | null;
+    supply?: number;
+    available?: number;
+    soldCount?: number;
+    sellerWalletAddress?: string;
+  } | null>(null);
+
+  type Listing = {
+    id: string;
+    songId: string;
+    title: string;
+    artist: string;
+    metadataUri?: string;
+    priceSol: number;
+    supply: number;
+    mintedAddresses: string[];
+    sellerWalletAddress: string;
+    sellerUserId: string;
+    available: number;
+    soldCount: number;
+  };
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [listingsLoading, setListingsLoading] = useState(true);
+  const [listingsError, setListingsError] = useState<string | null>(null);
+
+  // Avoid showing duplicates: if a song has an active listing,
+  // exclude it from the general NFT grid below.
+  const listedSongIds = useMemo(() => new Set(listings.map(l => l.songId)), [listings]);
+  const unlistedSongs = useMemo(() => songs.filter(s => !listedSongIds.has(s.id)), [songs, listedSongIds]);
+
+  // Load active marketplace listings
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setListingsLoading(true);
+      setListingsError(null);
+      try {
+        const res = await fetch('/api/marketplace/listings');
+        if (!res.ok) throw new Error('Failed to load listings');
+        const j = await res.json();
+        if (!cancelled) setListings(j.listings || []);
+      } catch (e: any) {
+        if (!cancelled) setListingsError(e?.message || 'Failed to load listings');
+      } finally {
+        if (!cancelled) setListingsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleBuy = async (listing: Listing) => {
+    if (!connected || !publicKey || !sendTransaction) {
+      alert('Connect your wallet to buy');
+      return;
+    }
+    if (listing.available <= 0) {
+      alert('Sold out');
+      return;
+    }
+    try {
+      setBuying(listing.id);
+      const seller = new PublicKey(listing.sellerWalletAddress);
+      const lamports = Math.round(listing.priceSol * LAMPORTS_PER_SOL);
+      const tx = new Transaction().add(
+        SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: seller, lamports })
+      );
+      const endpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_ENDPOINT || 'https://api.devnet.solana.com';
+      const conn = new Connection(endpoint);
+      const signature = await sendTransaction(tx, conn);
+      try { await conn.confirmTransaction(signature, 'confirmed'); } catch {}
+
+      const url = `/api/marketplace/listings/${listing.id}/buy`;
+      const payload = { signature, buyer_wallet_address: publicKey.toBase58() };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      let j: any = null;
+      try {
+        j = await res.json();
+      } catch {
+        const text = await res.text();
+        throw new Error(text || 'Purchase failed (non-JSON response)');
+      }
+      // If server is still waiting for parsed transaction availability, poll a few times
+      if (res.status === 202 && j?.pending) {
+        for (let i = 0; i < 6; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const r2 = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          let j2: any = null;
+          try { j2 = await r2.json(); } catch { j2 = {}; }
+          if (r2.ok && j2?.success) { j = j2; break; }
+          if (r2.status !== 202) {
+            throw new Error(j2?.error || 'Purchase verification failed');
+          }
+        }
+      }
+      if (!res.ok || !j?.success) {
+        throw new Error(j?.error || 'Purchase failed');
+      }
+      setListings((prev) => prev.map(l => {
+        if (l.id !== listing.id) return l;
+        const soldCount = (l.soldCount ?? 0) + 1;
+        const available = Math.max(0, l.supply - soldCount);
+        return { ...l, soldCount, available };
+      }));
+      alert('Purchase successful');
+    } catch (e: any) {
+      console.error('Buy error:', e);
+      alert(e?.message || 'Purchase failed');
+    } finally {
+      setBuying(null);
+    }
+  };
+
+  // Join song media for listings
+  const [listingMedia, setListingMedia] = useState<Record<string, { audioUrl?: string | null; coverUrl?: string | null }>>({});
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const ids = Array.from(new Set(listings.map(l => l.songId))).filter(Boolean);
+        if (!ids.length) return;
+        const { data, error } = await supabase
+          .from('songs')
+          .select('id, audio_url, cover_url, cover_art_url')
+          .in('id', ids);
+        if (error) throw error;
+        const map: Record<string, { audioUrl?: string | null; coverUrl?: string | null }> = {};
+        const rows = (data ?? []) as Array<{ id: string; audio_url: string | null; cover_url: string | null; cover_art_url: string | null }>;
+        for (const s of rows) {
+          const audioPath = s.audio_url || null;
+          const coverPath = s.cover_url || s.cover_art_url || null;
+          const audioUrl = audioPath ? supabase.storage.from('karaoke-songs').getPublicUrl(audioPath).data.publicUrl : null;
+          const coverUrl = coverPath ? supabase.storage.from('karaoke-songs').getPublicUrl(coverPath).data.publicUrl : "/riddimz-logo.jpg";
+          map[s.id] = { audioUrl, coverUrl };
+        }
+        if (!cancelled) setListingMedia(map);
+      } catch (e) {
+        // ignore media join errors
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [supabase, listings]);
 
   // Fetch NFT metadata JSON to extract image for each song; cache by URI
   useEffect(() => {
@@ -118,7 +294,14 @@ export default function MarketplacePage() {
             const res = await fetch(uri);
             if (!res.ok) return [uri, undefined] as const;
             const json = await res.json();
-            const img = typeof json?.image === 'string' ? json.image : undefined;
+            let img = typeof json?.image === 'string' ? json.image : undefined;
+            
+            // Convert relative paths to absolute URLs
+            if (img && !img.startsWith('http')) {
+              const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+              img = `${supabaseUrl}/storage/v1/object/public/karaoke-songs/${img}`;
+            }
+            
             return [uri, img] as const;
           } catch {
             return [uri, undefined] as const;
@@ -149,104 +332,356 @@ export default function MarketplacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [songs]);
 
+  // Audio playback functions
+  const handlePlay = (songId: string, audioUrl: string) => {
+    if (currentlyPlaying === songId) return;
+    
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    
+    const newAudio = new Audio(audioUrl);
+    newAudio.addEventListener('ended', () => {
+      setCurrentlyPlaying(null);
+      setAudio(null);
+    });
+    
+    newAudio.play();
+    setAudio(newAudio);
+    setCurrentlyPlaying(songId);
+  };
+
+  const handlePause = () => {
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    setCurrentlyPlaying(null);
+    setAudio(null);
+  };
+
+  // Detail modal handlers
+  const openListingDetail = (listing: Listing) => {
+    const media = listingMedia[listing.songId] || {};
+    const coverUrl = media.coverUrl || "/riddimz-logo.jpg";
+    const audioUrl = media.audioUrl || null;
+    setSelectedItem({
+      id: listing.id,
+      title: listing.title,
+      artist: listing.artist,
+      coverUrl,
+      audioUrl,
+      price: listing.priceSol,
+      currency: "SOL",
+      isListed: true,
+      metadataUri: listing.metadataUri,
+      supply: listing.supply,
+      available: listing.available,
+      soldCount: listing.soldCount,
+      sellerWalletAddress: listing.sellerWalletAddress,
+    });
+    setSelectedListing(listing);
+    setDetailOpen(true);
+  };
+
+  const openSongDetail = (song: SongRow) => {
+    const coverUrl =
+      metadataImages[song.id] ||
+      buildPublicUrl(song.cover_url) ||
+      buildPublicUrl(song.cover_art_url) ||
+      "/riddimz-logo.jpg";
+    const audioUrl = buildPublicUrl(song.audio_url) || null;
+    setSelectedItem({
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      coverUrl,
+      audioUrl,
+      isListed: false,
+      metadataUri: song.nft_metadata_uri,
+    });
+    setSelectedListing(null);
+    setDetailOpen(true);
+  };
+
+  const closeDetail = () => {
+    setDetailOpen(false);
+    setSelectedItem(null);
+    setSelectedListing(null);
+  };
+
+  // Filter and sort functions
+  const filteredAndSortedListings = useMemo(() => {
+    let filtered = listings;
+    
+    if (searchQuery) {
+      filtered = filtered.filter(listing => 
+        listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        listing.artist.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    switch (sortBy) {
+      case 'price-low':
+        return [...filtered].sort((a, b) => a.priceSol - b.priceSol);
+      case 'price-high':
+        return [...filtered].sort((a, b) => b.priceSol - a.priceSol);
+      case 'alphabetical':
+        return [...filtered].sort((a, b) => a.title.localeCompare(b.title));
+      case 'popular':
+        return [...filtered].sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0));
+      default:
+        return filtered;
+    }
+  }, [listings, searchQuery, sortBy]);
+
+  const filteredAndSortedUnlisted = useMemo(() => {
+    let filtered = unlistedSongs;
+    
+    if (searchQuery) {
+      filtered = filtered.filter(song => 
+        song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        song.artist.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    switch (sortBy) {
+      case 'alphabetical':
+        return [...filtered].sort((a, b) => a.title.localeCompare(b.title));
+      default:
+        return filtered;
+    }
+  }, [unlistedSongs, searchQuery, sortBy]);
+
+  // Calculate stats
+  const totalItems = songs.length;
+  const totalVolume = listings.reduce((sum, listing) => sum + (listing.priceSol * (listing.soldCount || 0)), 0);
+  const activeListings = listings.filter(l => l.available > 0).length;
+  const totalCreators = new Set([...listings.map(l => l.sellerUserId), ...songs.map(s => s.id)]).size;
+  const floorPrice = listings.length > 0 ? Math.min(...listings.map(l => l.priceSol)) : 0;
+  const avgPrice = listings.length > 0 ? listings.reduce((sum, l) => sum + l.priceSol, 0) / listings.length : 0;
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Marketplace</h1>
-        <p className="text-sm text-muted-foreground">
-          Discover and preview NFT songs minted by creators.
-        </p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-6 space-y-8">
+        {/* Header */}
+        <MarketplaceHeader
+          onSearch={setSearchQuery}
+          onSortChange={setSortBy}
+          onViewChange={setView}
+          totalItems={totalItems}
+          view={view}
+        />
 
-      {error && (
-        <div className="mb-4 text-red-500">Error loading songs: {error}</div>
-      )}
+        {/* Collection Stats */}
+        <CollectionStats
+          totalItems={totalItems}
+          totalVolume={totalVolume}
+          activeListings={activeListings}
+          totalCreators={totalCreators}
+          floorPrice={floorPrice}
+          avgPrice={avgPrice}
+        />
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-40" />
-                <Skeleton className="h-4 w-24 mt-2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="w-full h-48" />
-                <Skeleton className="w-full h-10 mt-4" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {songs.map((song) => {
-              const coverUrl =
-                metadataImages[song.id] ||
-                buildPublicUrl(song.cover_url) ||
-                buildPublicUrl(song.cover_art_url) ||
-                "/riddimz-logo.jpg";
-              const audioUrl = buildPublicUrl(song.audio_url);
-              return (
-                <Card key={song.id}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span className="truncate" title={song.title}>{song.title}</span>
-                      <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-700">NFT</span>
-                    </CardTitle>
-                    <div className="text-sm text-muted-foreground">
-                      {song.artist}
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="relative w-full h-48 overflow-hidden rounded">
-                      <Image
-                        src={coverUrl}
-                        alt={`${song.title} cover`}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      />
-                    </div>
-
-                    <div className="mt-4">
-                      {audioUrl ? (
-                        <audio controls preload="none" className="w-full">
-                          <source src={audioUrl} />
-                          Your browser does not support the audio element.
-                        </audio>
-                      ) : (
-                        <div className="text-sm text-muted-foreground">
-                          No audio preview available.
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-4 flex items-center gap-2">
-                      <Button disabled variant="secondary" title="Checkout coming soon">
-                        Buy
-                      </Button>
-                      <Link href="/music" className="text-sm underline">
-                        Details
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+        {/* Error Display */}
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+            <p className="text-destructive">Error loading songs: {error}</p>
           </div>
+        )}
 
-          <div className="mt-6 flex justify-center">
-            {hasMore ? (
-              <Button onClick={loadMore} disabled={loadingMore} variant="outline">
-                {loadingMore ? "Loading..." : "Load More"}
-              </Button>
+        {listingsError && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+            <p className="text-destructive">{listingsError}</p>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <Tabs defaultValue="all" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+            <TabsTrigger value="all">All Items ({totalItems})</TabsTrigger>
+            <TabsTrigger value="listings">Active Listings ({activeListings})</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all" className="space-y-6">
+            {loading ? (
+              <div className={`grid gap-6 ${view === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <div className="aspect-square">
+                      <Skeleton className="w-full h-full" />
+                    </div>
+                    <div className="p-4 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                      <Skeleton className="h-8 w-full" />
+                    </div>
+                  </Card>
+                ))}
+              </div>
             ) : (
-              <div className="text-sm text-muted-foreground">No more items</div>
+              <>
+                {/* Active Listings */}
+                {filteredAndSortedListings.length > 0 && (
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-semibold">Active Listings</h2>
+                    <div className={`grid gap-6 ${view === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+                      {filteredAndSortedListings.map((listing) => {
+                        const media = listingMedia[listing.songId] || {};
+                        const coverUrl = media.coverUrl || "/riddimz-logo.jpg";
+                        const audioUrl = media.audioUrl;
+                        
+                        return (
+                          <NFTCard
+                            key={listing.id}
+                            id={listing.id}
+                            title={listing.title}
+                            artist={listing.artist}
+                            coverUrl={coverUrl}
+                            audioUrl={audioUrl || undefined}
+                            price={listing.priceSol}
+                            currency="SOL"
+                            isListed={true}
+                            onPlay={() => audioUrl && handlePlay(listing.id, audioUrl)}
+                            onPause={handlePause}
+                            onBuy={() => handleBuy(listing)}
+                            onOpenDetails={() => openListingDetail(listing)}
+                            isPlaying={currentlyPlaying === listing.id}
+                            view={view}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Unlisted NFTs */}
+                {filteredAndSortedUnlisted.length > 0 && (
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-semibold">NFT Collection</h2>
+                    <div className={`grid gap-6 ${view === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+                      {filteredAndSortedUnlisted.map((song) => {
+                        const coverUrl =
+                          metadataImages[song.id] ||
+                          buildPublicUrl(song.cover_url) ||
+                          buildPublicUrl(song.cover_art_url) ||
+                          "/riddimz-logo.jpg";
+                        const audioUrl = buildPublicUrl(song.audio_url);
+                        
+                        return (
+                          <NFTCard
+                            key={song.id}
+                            id={song.id}
+                            title={song.title}
+                            artist={song.artist}
+                            coverUrl={coverUrl}
+                            audioUrl={audioUrl || undefined}
+                            isListed={false}
+                            onPlay={() => audioUrl && handlePlay(song.id, audioUrl)}
+                            onPause={handlePause}
+                            onOpenDetails={() => openSongDetail(song)}
+                            isPlaying={currentlyPlaying === song.id}
+                            view={view}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Load More */}
+                {hasMore && (
+                  <div className="flex justify-center pt-8">
+                    <Button 
+                      onClick={loadMore} 
+                      disabled={loadingMore} 
+                      variant="outline"
+                      size="lg"
+                    >
+                      {loadingMore ? "Loading..." : "Load More"}
+                    </Button>
+                  </div>
+                )}
+
+                {!loading && filteredAndSortedListings.length === 0 && filteredAndSortedUnlisted.length === 0 && (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">No items found matching your criteria.</p>
+                  </div>
+                )}
+              </>
             )}
-          </div>
-        </>
-      )}
+          </TabsContent>
+
+          <TabsContent value="listings" className="space-y-6">
+            {listingsLoading ? (
+              <div className={`grid gap-6 ${view === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <div className="aspect-square">
+                      <Skeleton className="w-full h-full" />
+                    </div>
+                    <div className="p-4 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                      <Skeleton className="h-8 w-full" />
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : filteredAndSortedListings.length > 0 ? (
+              <div className={`grid gap-6 ${view === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+                {filteredAndSortedListings.map((listing) => {
+                  const media = listingMedia[listing.songId] || {};
+                  const coverUrl = media.coverUrl || "/riddimz-logo.jpg";
+                  const audioUrl = media.audioUrl;
+                  
+                  return (
+                    <NFTCard
+                      key={listing.id}
+                      id={listing.id}
+                      title={listing.title}
+                      artist={listing.artist}
+                      coverUrl={coverUrl}
+                      audioUrl={audioUrl || undefined}
+                      price={listing.priceSol}
+                      currency="SOL"
+                      isListed={true}
+                      onPlay={() => audioUrl && handlePlay(listing.id, audioUrl)}
+                      onPause={handlePause}
+                      onBuy={() => handleBuy(listing)}
+                      onOpenDetails={() => openListingDetail(listing)}
+                      isPlaying={currentlyPlaying === listing.id}
+                      view={view}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No active listings found.</p>
+                <Link href="/marketplace/create" className="text-primary hover:underline mt-2 inline-block">
+                  List your first item
+                </Link>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+        {selectedItem && (
+          <NFTDetailModal
+            open={detailOpen}
+            onClose={closeDetail}
+            item={selectedItem}
+            onBuy={selectedListing ? () => handleBuy(selectedListing) : undefined}
+          />
+        )}
     </div>
   );
 }

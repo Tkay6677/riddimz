@@ -28,6 +28,7 @@ interface UsePodcastRoomReturn {
   joinRoom: (roomId: string) => Promise<void>;
   leaveRoom: (roomId: string) => Promise<void>;
   refreshRoom: (roomId: string) => Promise<PodcastRoom | null>;
+  channel: RealtimeChannel | null;
 }
 
 export function usePodcastRoom(): UsePodcastRoomReturn {
@@ -38,6 +39,7 @@ export function usePodcastRoom(): UsePodcastRoomReturn {
   const [error, setError] = useState<string | null>(null);
   const [isHost, setIsHost] = useState<boolean>(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const [channel, setChannel] = useState<RealtimeChannel | null>(null);
 
   const refreshRoom = useCallback(async (roomId: string) => {
     try {
@@ -72,6 +74,7 @@ export function usePodcastRoom(): UsePodcastRoomReturn {
         config: { presence: { key: "user_id" } },
       });
       channelRef.current = channel;
+      setChannel(channel);
 
       channel.on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
@@ -108,6 +111,7 @@ export function usePodcastRoom(): UsePodcastRoomReturn {
         await channelRef.current.unsubscribe();
         channelRef.current = null;
       }
+      setChannel(null);
       setParticipants([]);
     } catch (e) {
       // ignore
@@ -132,5 +136,6 @@ export function usePodcastRoom(): UsePodcastRoomReturn {
     joinRoom,
     leaveRoom,
     refreshRoom,
+    channel,
   };
 }

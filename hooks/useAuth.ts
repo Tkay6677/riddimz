@@ -36,7 +36,7 @@ export function useAuth() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []); // Empty dependency array since we're using the singleton client
+  }, [supabase]);
 
 
 

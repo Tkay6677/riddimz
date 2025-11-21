@@ -59,7 +59,7 @@ export default function SupabaseProvider({
     return () => {
       subscription.unsubscribe();
     };
-  }, [router]);
+  }, [router, supabase.auth]);
 
   return (
     <Context.Provider value={{ user, session, loading }}>
@@ -74,4 +74,4 @@ export const useSupabase = () => {
     throw new Error('useSupabase must be used inside SupabaseProvider');
   }
   return context;
-}; 
+};

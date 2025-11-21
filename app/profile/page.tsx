@@ -19,36 +19,10 @@ import { useProfile } from '@/hooks/useProfile'
 import { useToast, toast as globalToast } from '@/components/ui/use-toast'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useCreatorUpgrade } from '@/hooks/useCreatorUpgrade'
-import { useWallet } from '@solana/wallet-adapter-react'
+import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
-
-// Mock data
-const nfts = [
-  {
-    id: '1',
-    name: 'Golden Microphone',
-    image: 'https://images.pexels.com/photos/164829/pexels-photo-164829.jpeg',
-    creator: 'Riddimz Official',
-    type: 'Badge',
-    description: 'Awarded for hosting 10+ karaoke rooms'
-  },
-  {
-    id: '2',
-    name: 'Cosmic Harmony',
-    image: 'https://images.pexels.com/photos/1762851/pexels-photo-1762851.jpeg',
-    creator: 'Luna Echo',
-    type: 'Song',
-    description: 'Exclusive song with unlimited karaoke access'
-  },
-  {
-    id: '3',
-    name: 'Virtual Stage - Neon City',
-    image: 'https://images.pexels.com/photos/1484516/pexels-photo-1484516.jpeg',
-    creator: 'Riddimz Official',
-    type: 'Room Theme',
-    description: 'Special karaoke room background theme'
-  }
-]
+import { Metaplex } from '@metaplex-foundation/js'
+import Link from 'next/link'
 
 interface Song {
   id: string;
@@ -129,8 +103,17 @@ export default function Profile() {
 
   // Creator upgrade hooks and state
   const { mintCreatorNft, checkIsCreator, minting, lastMintAddress } = useCreatorUpgrade()
-  const { connected } = useWallet()
+  const { connected, publicKey } = useWallet()
+  const { connection } = useConnection()
   const [isCreator, setIsCreator] = useState(false)
+
+  // My NFTs tab state
+  const [activeTab, setActiveTab] = useState<string>('history')
+  type WalletNft = { mintAddress: string; name?: string; symbol?: string; uri?: string; image?: string }
+  const [walletNfts, setWalletNfts] = useState<WalletNft[]>([])
+  const [nftLoading, setNftLoading] = useState<boolean>(false)
+  const [nftError, setNftError] = useState<string | null>(null)
+  const [myListingsByUri, setMyListingsByUri] = useState<Record<string, { id: string; active: boolean; priceSol: number }>>({})
 
   useEffect(() => {
     if (user && isInitialLoad) {
@@ -169,6 +152,87 @@ export default function Profile() {
     }
   }
 
+  // Load wallet NFTs for My NFTs tab
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      if (!connected || !publicKey) return
+      setNftLoading(true)
+      setNftError(null)
+      try {
+        const metaplex = Metaplex.make(connection)
+        const all = await metaplex.nfts().findAllByOwner({ owner: publicKey })
+        const items: WalletNft[] = []
+        for (const n of all) {
+          const uri = (n as any).uri as string | undefined
+          let image: string | undefined
+          if (uri) {
+            try {
+              const res = await fetch(uri)
+              if (res.ok) {
+                const j = await res.json().catch(() => null)
+                if (j && typeof j.image === 'string') image = j.image
+              }
+            } catch {}
+          }
+          items.push({ mintAddress: (n as any).address?.toBase58?.() || (n as any).mintAddress?.toBase58?.() || '', name: (n as any).name, symbol: (n as any).symbol, uri, image })
+        }
+        if (!cancelled) setWalletNfts(items)
+      } catch (e: any) {
+        if (!cancelled) setNftError(e?.message || 'Failed to load NFTs')
+      } finally {
+        if (!cancelled) setNftLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [connected, publicKey, connection])
+
+  // Map my active listings by metadata URI for quick lookup
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/marketplace/listings')
+        if (!res.ok) return
+        const j = await res.json()
+        const mine = (j.listings || []).filter((l: any) => l.sellerWalletAddress && publicKey && l.sellerWalletAddress === publicKey.toBase58())
+        const map: Record<string, { id: string; active: boolean; priceSol: number }> = {}
+        for (const l of mine) {
+          if (l.metadataUri) map[l.metadataUri] = { id: l.id, active: true, priceSol: l.priceSol }
+        }
+        if (!cancelled) setMyListingsByUri(map)
+      } catch {}
+    })()
+    return () => { cancelled = true }
+  }, [publicKey])
+
+  const handleUnlist = async (listingId: string) => {
+    try {
+      const res = await fetch(`/api/marketplace/listings/${listingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: false })
+      })
+      const j = await res.json()
+      if (!res.ok || !j?.success) {
+        throw new Error(j?.error || 'Failed to unlist')
+      }
+      setMyListingsByUri(prev => {
+        const next = { ...prev }
+        for (const [uri, info] of Object.entries(next)) {
+          if (info.id === listingId) {
+            delete next[uri]
+            break
+          }
+        }
+        return next
+      })
+      toast({ title: 'Unlisted', description: 'Your listing is now inactive.' })
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Unlist failed', description: e?.message || 'Could not unlist' })
+    }
+  }
+
   const loadUserProfile = async () => {
     try {
       setLoading(true)
@@ -180,14 +244,31 @@ export default function Profile() {
 
       if (error) throw error
 
+      let followersCount = 0
+      let followingCount = 0
+      try {
+        const { count: fCount } = await supabase
+          .from('user_follows')
+          .select('*', { count: 'exact', head: true })
+          .eq('following_id', user?.id)
+        followersCount = fCount ?? 0
+      } catch {}
+      try {
+        const { count: gCount } = await supabase
+          .from('user_follows')
+          .select('*', { count: 'exact', head: true })
+          .eq('follower_id', user?.id)
+        followingCount = gCount ?? 0
+      } catch {}
+
       if (profile) {
         setUserProfile({
           username: profile.username || '',
           avatar_url: profile.avatar_url || '',
           email: profile.email || '',
           created_at: new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-          followers: profile.followers_count || 0,
-          following: profile.following_count || 0,
+          followers: followersCount,
+          following: followingCount,
           performances: profile.performances_count || 0
         })
       }
@@ -560,7 +641,7 @@ export default function Profile() {
           <Card>
             <CardContent className="p-4">
               <nav className="space-y-1">
-                <Button variant="ghost" className="w-full justify-start">
+                <Button variant="ghost" className="w-full justify-start" onClick={() => setActiveTab('nfts')}>
                   <Award className="h-4 w-4 mr-2" />
                   My NFTs
                 </Button>
@@ -575,7 +656,7 @@ export default function Profile() {
         
         {/* Main content */}
         <div className="md:col-span-2">
-          <Tabs defaultValue="history" className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <div className="overflow-x-auto">
               <TabsList className="inline-flex w-max min-w-full">
                 <TabsTrigger value="history" className="whitespace-nowrap">
@@ -593,6 +674,10 @@ export default function Profile() {
                 <TabsTrigger value="stats" className="whitespace-nowrap">
                   <Award className="h-4 w-4 mr-2" />
                   Statistics
+                </TabsTrigger>
+                <TabsTrigger value="nfts" className="whitespace-nowrap">
+                  <Award className="h-4 w-4 mr-2" />
+                  My NFTs
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -790,6 +875,69 @@ export default function Profile() {
                   </ScrollArea>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="nfts" className="space-y-4">
+              {!connected ? (
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="mb-2 text-sm text-muted-foreground">Connect your wallet to view your NFTs.</div>
+                    <WalletMultiButton />
+                  </CardContent>
+                </Card>
+              ) : nftLoading ? (
+                <Card>
+                  <CardContent className="p-4">Loading NFTs…</CardContent>
+                </Card>
+              ) : nftError ? (
+                <Card>
+                  <CardContent className="p-4 text-red-500">{nftError}</CardContent>
+                </Card>
+              ) : walletNfts.length === 0 ? (
+                <Card>
+                  <CardContent className="p-4 text-muted-foreground">No NFTs found in your wallet.</CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {walletNfts.map((nft, idx) => {
+                    const listing = nft.uri ? myListingsByUri[nft.uri] : undefined
+                    return (
+                      <Card key={`wallet-nft-${idx}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="h-16 w-16 relative rounded-md overflow-hidden">
+                              {nft.image ? (
+                                <Image src={nft.image} alt={nft.name || 'NFT'} fill className="object-cover" unoptimized />
+                              ) : (
+                                <div className="w-full h-full bg-muted flex items-center justify-center">
+                                  <Award className="h-8 w-8 text-muted-foreground" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold">{nft.name || 'Unnamed NFT'}</h3>
+                              <p className="text-xs text-muted-foreground break-all">{nft.mintAddress}</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between">
+                            {listing ? (
+                              <Button variant="outline" onClick={() => handleUnlist(listing.id)}>Unlist</Button>
+                            ) : (
+                              nft.uri ? (
+                                <Link href={`/marketplace/create?metadataUri=${encodeURIComponent(nft.uri)}`}>
+                                  <Button>List</Button>
+                                </Link>
+                              ) : (
+                                <Button disabled>List</Button>
+                              )
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>

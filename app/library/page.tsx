@@ -319,7 +319,7 @@ export default function LibraryPage() {
           : "relative w-24 h-24 overflow-hidden"
       )}>
         <img 
-          src={song.coverArtUrl || '/images/default-cover.jpg'} 
+          src={song.coverArtUrl || '/riddimz-logo.jpg'} 
           alt={song.title} 
           className="w-full h-full object-cover"
         />

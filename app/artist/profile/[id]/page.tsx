@@ -71,6 +71,7 @@ export default function ArtistProfilePage() {
   const [stats, setStats] = useState<ArtistStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [isFollowing, setIsFollowing] = useState(false)
+  const [followBusy, setFollowBusy] = useState(false)
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null)
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null)
 
@@ -93,15 +94,36 @@ export default function ArtistProfilePage() {
     try {
       setLoading(true)
 
-      // Load artist profile
+      // Load artist profile (base info from public.users)
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('id', artistId)
         .single()
 
       if (profileError) throw profileError
-      setProfile(profileData)
+
+      // Load extended profile details from user_profile (bio, location, website, display_name)
+      let mergedProfile = profileData
+      try {
+        const { data: extProfile } = await supabase
+          .from('user_profile')
+          .select('display_name, bio, location, website')
+          .eq('user_id', artistId)
+          .single()
+
+        if (extProfile) {
+          mergedProfile = {
+            ...profileData,
+            username: extProfile.display_name || profileData.username,
+            bio: extProfile.bio || undefined,
+            location: extProfile.location || undefined,
+            website: extProfile.website || undefined,
+          }
+        }
+      } catch {}
+
+      setProfile(mergedProfile)
 
       // Load artist's songs
       const { data: songsData, error: songsError } = await supabase
@@ -131,14 +153,46 @@ export default function ArtistProfilePage() {
 
       // Calculate stats
       const totalPlays = songsData.reduce((sum, song) => sum + (song.play_count || 0), 0)
-      const stats: ArtistStats = {
+
+      // Load follower count for this artist
+      let followersCount = 0
+      try {
+        const { count, error: countError } = await supabase
+          .from('user_follows')
+          .select('*', { count: 'exact', head: true })
+          .eq('following_id', artistId)
+
+        if (countError) throw countError
+        followersCount = count ?? 0
+      } catch (e) {
+        console.warn('Failed to load followers count', e)
+      }
+
+      // Load whether current user follows this artist
+      try {
+        if (user?.id) {
+          const { count: iCount, error: iErr } = await supabase
+            .from('user_follows')
+            .select('*', { count: 'exact', head: true })
+            .eq('follower_id', user.id)
+            .eq('following_id', artistId)
+          if (iErr) throw iErr
+          setIsFollowing((iCount ?? 0) > 0)
+        } else {
+          setIsFollowing(false)
+        }
+      } catch (e) {
+        console.warn('Failed to determine follow state', e)
+      }
+
+      const nextStats: ArtistStats = {
         totalSongs: regularSongs.length,
         totalPlays,
         totalKaraokeTracks: karaokeSongs.length,
-        followers: 0, // TODO: Implement followers system
+        followers: followersCount,
         joinedDate: profileData.created_at
       }
-      setStats(stats)
+      setStats(nextStats)
 
     } catch (error) {
       console.error('Error loading artist profile:', error)
@@ -381,6 +435,10 @@ export default function ArtistProfilePage() {
                 {stats.totalKaraokeTracks} karaoke tracks
               </span>
               <span className="flex items-center">
+                <Users className="h-4 w-4 mr-1" />
+                {stats.followers} followers
+              </span>
+              <span className="flex items-center">
                 <Play className="h-4 w-4 mr-1" />
                 {stats.totalPlays.toLocaleString()} plays
               </span>
@@ -420,9 +478,48 @@ export default function ArtistProfilePage() {
           {/* Actions */}
           <div className="flex flex-wrap justify-center md:justify-start gap-3">
             {user?.id !== artistId && (
-              <Button>
+              <Button
+                disabled={followBusy}
+                onClick={async () => {
+                  try {
+                    if (!user?.id) {
+                      toast({ title: 'Login required', description: 'Please sign in to follow artists.' })
+                      return
+                    }
+                    setFollowBusy(true)
+                    if (isFollowing) {
+                      const { error } = await supabase
+                        .from('user_follows')
+                        .delete()
+                        .eq('follower_id', user.id)
+                        .eq('following_id', artistId)
+                      if (error) throw error
+                      setIsFollowing(false)
+                      setStats(prev => prev ? { ...prev, followers: Math.max(0, prev.followers - 1) } : prev)
+                      toast({ title: 'Unfollowed', description: `You unfollowed ${profile?.username || 'artist'}.` })
+                    } else {
+                      const { error } = await supabase
+                        .from('user_follows')
+                        .insert({ follower_id: user.id, following_id: artistId })
+                      if (error) throw error
+                      setIsFollowing(true)
+                      setStats(prev => prev ? { ...prev, followers: (prev.followers + 1) } : prev)
+                      toast({ title: 'Following', description: `You’re now following ${profile?.username || 'artist'}.` })
+                    }
+                  } catch (e: any) {
+                    console.error('Follow toggle failed', e)
+                    const msg =
+                      e?.code === '42P01' || (typeof e?.message === 'string' && e.message.includes('relation'))
+                        ? 'Follow feature setup incomplete: missing user_follows table.'
+                        : e?.message || 'Could not update follow'
+                    toast({ variant: 'destructive', title: 'Action failed', description: msg })
+                  } finally {
+                    setFollowBusy(false)
+                  }
+                }}
+              >
                 <Heart className="h-4 w-4 mr-2" />
-                {isFollowing ? 'Following' : 'Follow'}
+                {isFollowing ? 'Following' : (followBusy ? '...' : 'Follow')}
               </Button>
             )}
             <Button variant="outline">

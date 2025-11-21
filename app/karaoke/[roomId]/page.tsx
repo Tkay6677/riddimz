@@ -38,7 +38,6 @@ import '@stream-io/video-react-sdk/dist/css/styles.css'
 import { JoinStreamModal } from '@/components/JoinStreamModal'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import SongPicker from '@/components/karaoke/song-picker'
 import GiftHost from '@/components/GiftHost'
 
@@ -276,7 +275,6 @@ export default function KaraokeRoom() {
     isHostAudioDetected,
     participantConnectionStatus,
     debugAudioInfo,
-    hostWalletAddress,
   } = useWebRTC(roomId, user?.id || '', user?.id === room?.host_id, room?.song_url ?? undefined)
   const chatRef = useRef<HTMLDivElement>(null)
   
@@ -1114,66 +1112,7 @@ export default function KaraokeRoom() {
               )}
 
               {/* Add reaction & gift buttons */}
-              <div className="absolute top-4 right-4 z-30 flex items-center space-x-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-10 w-10 rounded-full border bg-muted hover:bg-muted/80 text-foreground shadow-sm"
-                      aria-label="Open reactions"
-                    >
-                      <Sparkles className="h-5 w-5" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-2 flex space-x-2" align="end" side="bottom">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleReaction('heart')}
-                      aria-label="Send heart reaction"
-                    >
-                      <Heart className="h-4 w-4 text-red-500" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleReaction('star')}
-                      aria-label="Send star reaction"
-                    >
-                      <Star className="h-4 w-4 text-yellow-500" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleReaction('thumbsUp')}
-                      aria-label="Send thumbs up reaction"
-                    >
-                      <ThumbsUp className="h-4 w-4 text-blue-500" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleReaction('clap')}
-                      aria-label="Send clap reaction"
-                    >
-                      <Hand className="h-4 w-4 text-green-500" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleReaction('sparkles')}
-                      aria-label="Send sparkles reaction"
-                    >
-                      <Sparkles className="h-4 w-4 text-purple-500" />
-                    </Button>
-                  </PopoverContent>
-                </Popover>
+              <div className="absolute top-4 right-4 z-30 flex space-x-2">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1189,7 +1128,7 @@ export default function KaraokeRoom() {
               {showGift && (
                 <div className="absolute top-16 right-4 z-50">
                   <GiftHost
-                    recipientAddress={hostWalletAddress || (((call?.state as any)?.custom?.hostWalletAddress as string) || null)}
+                    recipientAddress={((call?.state as any)?.custom?.hostWalletAddress as string) || null}
                     recipientName={'Host'}
                     onClose={() => setShowGift(false)}
                     onSuccess={() => setShowGift(false)}

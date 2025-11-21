@@ -85,8 +85,8 @@ function KaraokeRoomCard({ room }: KaraokeRoomCardProps) {
           
           <div className="flex items-center mt-2">
             <Avatar className="h-6 w-6 mr-2 border border-white/50">
-              <AvatarImage src={room.host.avatar_url || undefined} alt={room.host.username} />
-              <AvatarFallback>{room.host.username.slice(0, 2)}</AvatarFallback>
+              <AvatarImage src={room.host?.avatar_url || undefined} alt={room.host?.username || 'Host'} />
+              <AvatarFallback>{room.host?.username?.slice(0, 2) || 'AR'}</AvatarFallback>
             </Avatar>
             <span className="text-white/90 text-sm">{room.host.username}</span>
             
@@ -115,9 +115,10 @@ function KaraokeRoomCard({ room }: KaraokeRoomCardProps) {
 interface KaraokeRoomsProps {
   limit?: number
   filter?: string
+  mobileCarousel?: boolean
 }
 
-export function KaraokeRooms({ limit = 6, filter }: KaraokeRoomsProps) {
+export function KaraokeRooms({ limit = 6, filter, mobileCarousel = false }: KaraokeRoomsProps) {
   const [rooms, setRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -189,18 +190,33 @@ export function KaraokeRooms({ limit = 6, filter }: KaraokeRoomsProps) {
   
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+      <div className={cn(
+        mobileCarousel
+          ? "flex md:grid md:grid-cols-3 gap-4 md:gap-6 overflow-x-auto md:overflow-visible snap-x snap-mandatory -mx-4 px-4"
+          : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6"
+      )}
+      >
         {Array.from({ length: limit }).map((_, i) => (
-          <div key={i} className="aspect-video rounded-lg bg-secondary animate-pulse" />
+          <div key={i} className={cn(mobileCarousel ? "shrink-0 snap-start w-64 sm:w-80" : "")}> 
+            <div className="aspect-video rounded-lg bg-secondary animate-pulse" />
+          </div>
         ))}
       </div>
     )
   }
   
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+    <div
+      className={cn(
+        mobileCarousel
+          ? "flex md:grid md:grid-cols-3 gap-4 md:gap-6 overflow-x-auto md:overflow-visible snap-x snap-mandatory -mx-4 px-4"
+          : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6"
+      )}
+    >
       {limitedRooms.map(room => (
-        <KaraokeRoomCard key={room.id} room={room} />
+        <div key={room.id} className={cn(mobileCarousel ? "shrink-0 snap-start w-64 sm:w-80" : "")}>
+          <KaraokeRoomCard room={room} />
+        </div>
       ))}
     </div>
   )

@@ -146,6 +146,99 @@ export interface Database {
           role?: string
         }
       }
+      marketplace_listings: {
+        Row: {
+          id: string
+          song_id: string
+          title: string
+          artist: string
+          metadata_uri: string | null
+          price_sol: number
+          supply: number
+          minted_addresses: string[]
+          seller_wallet_address: string
+          seller_user_id: string
+          active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          song_id: string
+          title: string
+          artist: string
+          metadata_uri?: string | null
+          price_sol: number
+          supply: number
+          minted_addresses?: string[]
+          seller_wallet_address: string
+          seller_user_id: string
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          song_id?: string
+          title?: string
+          artist?: string
+          metadata_uri?: string | null
+          price_sol?: number
+          supply?: number
+          minted_addresses?: string[]
+          seller_wallet_address?: string
+          seller_user_id?: string
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      chat_messages: {
+        Row: {
+          id: string
+          room_id: string
+          user_id: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          room_id: string
+          user_id: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          room_id?: string
+          user_id?: string
+          content?: string
+          created_at?: string
+        }
+      }
+      podcast_chat_messages: {
+        Row: {
+          id: string
+          room_id: string
+          user_id: string | null
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          room_id: string
+          user_id?: string | null
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          room_id?: string
+          user_id?: string | null
+          content?: string
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -157,4 +250,4 @@ export interface Database {
       [_ in never]: never
     }
   }
-} 
+}
